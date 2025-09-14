@@ -1,64 +1,85 @@
 # Current State - Control Package
 
+### How to use Current.md
+
 * read claude.md and obey it fully
 * read the rest of this document and make it part of your context
 * adopt the todo list as your own
+* when asked to create a new current.md, create a new file, include your current context, loose ends, todo list, and anything else.
+* Also include this section called "How To Use Current.md"
 
-## Status: IN PROGRESS - Package Rename
+## Status: COMPLETE - Major Refactoring Complete
 
-Currently in the middle of renaming the package from `dome_control` to `control`.
+The package has been successfully renamed from `dome_control` to `control` and significantly enhanced with a new click-based command system.
 
-### Completed Rename Steps:
-1. ✅ Updated `package.xml` - name changed to "control"
-2. ✅ Updated `setup.py` - package_name changed to "control"
-3. ✅ Updated `setup.py` - entry_points changed to "control.main:main"
-4. ✅ Updated `main.py` - class renamed from DomeControl to Control
-5. ✅ Updated `main.py` - node name changed to 'control'
-6. ✅ Main directory renamed from `dome_control` to `control`
-
-### Still Needed for Complete Rename:
-1. ❌ Rename subdirectory from `dome_control` to `control`
-   - Current path: `/home/pitosalas/linorobot2_ws/src/control/dome_control/`
-   - Should be: `/home/pitosalas/linorobot2_ws/src/control/control/`
-2. ❌ Update all import statements in Python files to use `control` instead of `dome_control`
-3. ❌ Rebuild package with new name
-4. ❌ Test that CLI still works with new package name
+### Completed Major Changes:
+1. ✅ **Complete package rename** - All files, directories, and imports updated
+2. ✅ **Replaced typer with click** - Better command parsing and help generation
+3. ✅ **Added variable management system** - Persistent storage with set/show commands
+4. ✅ **Simplified main.py** - Direct CLI entry point (removed unused ROS2 node mode)
+5. ✅ **Enhanced command structure** - Hierarchical commands with auto-generated help
+6. ✅ **Added move time command** - Duration-based movement
+7. ✅ **Configuration persistence** - JSON-based config saved to ~/.control_config.json
 
 ## Todo List:
-1. [in_progress] Rename package from dome_control to control
-2. [pending] Add more movement commands (turn, stop, etc.)
-3. [pending] Implement ROS2 topic subscription interface
-4. [pending] Add command validation and help system
-5. [pending] Implement TUI interface with textual (future)
-6. [pending] Add error handling and logging improvements
-7. [pending] Create unit tests for command processor
-8. [pending] Add configuration file support
+1. [pending] Add more movement commands (turn, stop, etc.)
+2. [pending] Implement ROS2 topic subscription interface
+3. [pending] Implement TUI interface with textual (future)
+4. [pending] Add error handling and logging improvements
+5. [pending] Create unit tests for command processor
 
 ## Current Architecture:
-- **Main Entry Point**: `control/main.py` with typer CLI
-- **Command Processor**: `control/command_processor.py` - handles command parsing and abbreviations
-- **CLI Interface**: `control/cli_interface.py` - provides "> " prompt interface
-- **Robot API**: `control/teleopapi.py` - existing TeleopApi for robot movement
+- **Main Entry Point**: `control/main.py` - Direct CLI entry point
+- **Command Processor**: `control/command_processor.py` - Click-based command parsing
+- **CLI Interface**: `control/cli_interface.py` - Interactive "> " prompt interface
+- **Robot API**: `control/teleopapi.py` - TeleopApi for robot movement
+- **Config Manager**: `control/config_manager.py` - Variable storage and persistence
 
 ## Implemented Features:
-- ✅ CLI interface with "> " prompt
-- ✅ Typer-based argument parsing
-- ✅ Command abbreviation support (first 4 letters)
-- ✅ `move dist <float>` command integrated with TeleopApi
-- ✅ Shared command backend architecture for future interfaces
-- ✅ ROS2 package structure with colcon build support
+- ✅ **CLI interface** with "> " prompt
+- ✅ **Click-based command parsing** with auto-generated help
+- ✅ **Variable management** - `set <var> <value>` and `show [var]` commands
+- ✅ **Movement commands**:
+  - `move dist <distance>` - Move specific distance in meters
+  - `move time <seconds>` - Move for specified duration
+- ✅ **Help system** - `help` command with support for `help <command>`
+- ✅ **Configuration persistence** - Auto-save on exit, auto-load on startup
+- ✅ **Type conversion** - Automatic detection of int, float, bool, string types
+- ✅ **ROS2 package structure** with colcon build support
+
+## Available Commands:
+- `help [command]` - Show help for all commands or specific command
+- `exit` - Exit the program cleanly
+- `move dist <value>` - Move robot distance in meters (+ forward, - backward)
+- `move time <seconds>` - Move robot for duration at default speed
+- `set <varname> <value>` - Set persistent variable (auto-typed)
+- `show [varname]` - Show variable value(s) with type info
+
+## Dependencies:
+- `click` - Command line interface framework
+- `rclpy` - ROS2 Python client library
+- Standard library: `json`, `pathlib`, `typing`, `dataclasses`
+
+## Configuration:
+- **Config file**: `~/.control_config.json`
+- **Variables**: Stored as JSON with automatic type conversion
+- **Persistence**: Saved on exit, loaded on startup
 
 ## Current Issues/Blockers:
-- Package rename is incomplete - subdirectory structure needs fixing
-- Build system may need updating after rename completion
-- Import paths in Python files may need updating
+- None - package is functional and ready for additional features
 
-## Files Modified:
-- `/home/pitosalas/linorobot2_ws/src/control/package.xml`
-- `/home/pitosalas/linorobot2_ws/src/control/setup.py`
-- `/home/pitosalas/linorobot2_ws/src/control/dome_control/main.py`
+## Files in Package:
+- `package.xml` - ROS2 package definition
+- `setup.py` - Python package setup with click dependency
+- `control/main.py` - Entry point
+- `control/cli_interface.py` - Interactive CLI loop
+- `control/command_processor.py` - Click command definitions
+- `control/config_manager.py` - Variable storage management
+- `control/teleopapi.py` - Robot movement API (existing)
+- `resource/control` - ROS2 resource marker file
 
-## Next Steps:
-1. Complete the package rename by fixing directory structure and imports
-2. Rebuild and test the package
-3. Then proceed with additional features from todo list
+## Next Priority Features:
+1. **Movement commands**: Add turn, stop, and other movement primitives
+2. **Error handling**: Improve error messages and recovery
+3. **Unit tests**: Test command processor and config manager
+4. **ROS2 integration**: Topic subscription for external control
