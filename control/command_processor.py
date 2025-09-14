@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
-from typing import Dict, Callable, Any
+import click
+import io
+from contextlib import redirect_stdout, redirect_stderr
+from typing import Any
 from dataclasses import dataclass
 from .teleopapi import TeleopApi
+from .config_manager import ConfigManager
 
 @dataclass
 class CommandResult:
@@ -12,57 +16,145 @@ class CommandResult:
 
 class CommandProcessor:
     def __init__(self):
-        self.commands: Dict[str, Callable] = {}
         self.teleop_api = None
-        self._register_commands()
+        self.config_manager = ConfigManager()
+        self.cli = self._create_cli()
 
     def _get_teleop_api(self):
         if self.teleop_api is None:
             self.teleop_api = TeleopApi()
         return self.teleop_api
 
-    def _register_commands(self):
-        self.commands['move'] = self._handle_move
+    def save_config(self):
+        """Save configuration to file"""
+        self.config_manager.save_config()
+
+    def _create_cli(self):
+        @click.group(invoke_without_command=True)
+        @click.pass_context
+        def cli(ctx):
+            """Robot control commands"""
+            if ctx.invoked_subcommand is None:
+                click.echo("Type a command. Use --help for available commands.")
+
+        @cli.command()
+        @click.argument('command', required=False)
+        @click.pass_context
+        def help(ctx, command):
+            """Show help for all commands or a specific command"""
+            if command:
+                # Show help for specific command
+                try:
+                    subcommand = ctx.parent.command.get_command(ctx.parent, command)
+                    if subcommand:
+                        click.echo(subcommand.get_help(ctx.parent))
+                    else:
+                        click.echo(f"No such command '{command}'.")
+                except Exception:
+                    click.echo(f"No such command '{command}'.")
+            else:
+                # Print the main CLI help
+                click.echo(ctx.parent.get_help())
+
+        @cli.command()
+        def exit():
+            """Exit the program"""
+            click.echo("Exiting...")
+            # Will be handled by CLI interface checking for exit in result data
+            raise click.ClickException("EXIT_SIGNAL")
+
+        @cli.group()
+        def move():
+            """Move the robot"""
+            pass
+
+        @move.command()
+        @click.argument('distance', type=float)
+        def dist(distance):
+            """Move robot a specific distance in meters"""
+            try:
+                api = self._get_teleop_api()
+                api.move_dist(distance)
+                click.echo(f"Moved {distance} meters")
+            except Exception as e:
+                raise click.ClickException(f"Movement failed: {str(e)}")
+
+        @move.command()
+        @click.argument('seconds', type=float)
+        def time(seconds):
+            """Move robot at default speed for specified duration in seconds"""
+            try:
+                api = self._get_teleop_api()
+                api.move_time(seconds)
+                click.echo(f"Moved for {seconds} seconds")
+            except Exception as e:
+                raise click.ClickException(f"Movement failed: {str(e)}")
+
+        @cli.command()
+        @click.argument('varname')
+        @click.argument('value')
+        def set(varname, value):
+            """Set a variable to a value"""
+            if self.config_manager.set_variable(varname, value):
+                stored_value = self.config_manager.get_variable(varname)
+                click.echo(f"Set {varname} = {stored_value} ({type(stored_value).__name__})")
+            else:
+                raise click.ClickException(f"Failed to set variable {varname}")
+
+        @cli.command()
+        @click.argument('varname', required=False)
+        def show(varname):
+            """Show variable value(s). If no variable name given, shows all variables"""
+            if varname:
+                if self.config_manager.variable_exists(varname):
+                    value = self.config_manager.get_variable(varname)
+                    click.echo(f"{varname} = {value} ({type(value).__name__})")
+                else:
+                    raise click.ClickException(f"Variable '{varname}' not found")
+            else:
+                variables = self.config_manager.get_all_variables()
+                if variables:
+                    click.echo("All variables:")
+                    for name, value in variables.items():
+                        click.echo(f"  {name} = {value} ({type(value).__name__})")
+                else:
+                    click.echo("No variables set")
+
+        return cli
 
     def process_command(self, command_line: str) -> CommandResult:
-        parts = command_line.strip().split()
-        if not parts:
+        if not command_line.strip():
             return CommandResult(False, "Empty command")
 
-        command = self._expand_abbreviation(parts[0])
-        if command not in self.commands:
-            return CommandResult(False, f"Unknown command: {parts[0]}")
-
         try:
-            return self.commands[command](parts[1:])
+            # Capture click output and exceptions
+            stdout_buffer = io.StringIO()
+            stderr_buffer = io.StringIO()
+
+            with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+                try:
+                    # Handle exit command specially
+                    if command_line.strip().lower() == 'exit':
+                        return CommandResult(True, "Exiting...", {"exit": True})
+
+                    self.cli(command_line.split(), standalone_mode=False)
+                    output = stdout_buffer.getvalue().strip()
+                    return CommandResult(True, output if output else "Command completed")
+
+                except click.ClickException as e:
+                    if str(e.message) == "EXIT_SIGNAL":
+                        return CommandResult(True, "Exiting...", {"exit": True})
+                    error_msg = str(e.message) if hasattr(e, 'message') else str(e)
+                    return CommandResult(False, error_msg)
+                except click.UsageError as e:
+                    return CommandResult(False, str(e))
+                except SystemExit:
+                    # Click sometimes raises SystemExit, capture any output
+                    output = stdout_buffer.getvalue().strip()
+                    error = stderr_buffer.getvalue().strip()
+                    if error:
+                        return CommandResult(False, error)
+                    return CommandResult(True, output if output else "Command completed")
+
         except Exception as e:
             return CommandResult(False, f"Command error: {str(e)}")
-
-    def _expand_abbreviation(self, abbrev: str) -> str:
-        abbrev = abbrev.lower()
-        for cmd in self.commands.keys():
-            if cmd.startswith(abbrev[:4]):
-                return cmd
-        return abbrev
-
-    def _handle_move(self, args: list) -> CommandResult:
-        if len(args) < 2:
-            return CommandResult(False, "move requires: <subcommand> <value>")
-
-        subcommand = args[0].lower()
-        if subcommand == "dist":
-            try:
-                distance = float(args[1])
-                return self._execute_move_distance(distance)
-            except ValueError:
-                return CommandResult(False, "Distance must be a number")
-        else:
-            return CommandResult(False, f"Unknown move subcommand: {subcommand}")
-
-    def _execute_move_distance(self, distance: float) -> CommandResult:
-        try:
-            api = self._get_teleop_api()
-            api.move_dist(distance)
-            return CommandResult(True, f"Moved {distance} meters", {"distance": distance})
-        except Exception as e:
-            return CommandResult(False, f"Movement failed: {str(e)}")

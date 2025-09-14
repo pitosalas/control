@@ -16,4 +16,5 @@
     * avoid 1 line methods
     * look for code duplication and make the code DRY if it makes sense
     * When undertaking a multi step implemenation or refactoring, do it in a way that after each step we retain a running program so that I can test it to make sure we are on the right track.
+    * Don't assign the result of a function to a variable just to use that variable one time only, Just use the function call.
 
