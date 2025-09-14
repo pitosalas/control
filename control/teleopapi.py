@@ -6,6 +6,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import time
 import math
+from .config_manager import ConfigManager
 
 """
 TeleopApi Entry Points:
@@ -33,7 +34,7 @@ class TeleopApi(Node):
     ROS2 teleoperation API for robot movement control.
     Provides safe velocity commands with automatic stopping.
     """
-    def __init__(self):
+    def __init__(self, config_manager: ConfigManager = None):
         """Initialize teleop API node and publisher."""
         rclpy.init()
         super().__init__('teleop_api')
@@ -41,12 +42,17 @@ class TeleopApi(Node):
         # self.robogym_pub = self.create_publisher(Robogym, 'cli', 1)  # Commented out to remove message dependency
         self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.get_logger().info("TeleopApi node initialized")
+
         self.linear_min = -0.5
         self.linear_max = 0.5
         self.angular_min = -1.0
         self.angular_max = 1.0
-        self.linear:float  = 0.3
-        self.angular:float  = 0.4
+
+        # Initialize config manager
+        self.config = config_manager or ConfigManager()
+
+        self.linear:float = self.config.get_variable('linear_speed')
+        self.angular:float = self.config.get_variable('angular_speed')
         self.current_pose = None
     
     # Core Movement Methods
@@ -63,16 +69,27 @@ class TeleopApi(Node):
     # Core Turning Methods
     def turn_amount(self, angle: float):
         """Turn robot in place by a given angle in radians."""
-        if self.angular == 0: 
+        if self.angular == 0:
             self.get_logger().warn("Angular speed is zero, cannot turn.")
             return
         seconds = abs(angle) / self.angular
         angular_speed = self.angular if angle >= 0 else -self.angular
         self.cmd_vel_helper(0.0, angular_speed, seconds)
+
+    def turn_degrees(self, degrees: float):
+        """Turn robot in place by a given angle in degrees."""
+        radians = math.radians(degrees)
+        self.turn_amount(radians)
         
     def turn_time(self, seconds:float):
         """Turn robot at a specified speed for a given duration."""
         self.cmd_vel_helper(0.0, self.angular, seconds)
+
+    def calibrate_square(self, side_length: float):
+        """Move robot in a square pattern for calibration."""
+        for _ in range(4):
+            self.move_dist(side_length)
+            self.turn_amount(math.pi / 2)
 
     # Control Methods
     def stop(self):
@@ -108,6 +125,10 @@ class TeleopApi(Node):
             'linear_limits': [self.linear_min, self.linear_max],
             'angular_limits': [self.angular_min, self.angular_max]
         }
+
+    def get_topics(self):
+        """Get list of currently published topics."""
+        return self.get_topic_names_and_types()
 
     # Helper Methods
     def check_limits(self, linear, angular):

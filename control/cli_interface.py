@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
 from .command_processor import CommandProcessor
+from prompt_toolkit import prompt
+from prompt_toolkit.history import FileHistory
+from pathlib import Path
 
 class CLIInterface:
     def __init__(self):
         self.processor = CommandProcessor()
-        self.prompt = "> "
+        self.prompt_text = "> "
+        history_file = Path(__file__).parent.parent / "command_history.txt"
+        self.history = FileHistory(str(history_file))
 
     def run(self):
         print("Robot Command Interface")
@@ -13,7 +18,7 @@ class CLIInterface:
 
         while True:
             try:
-                command_line = input(self.prompt)
+                command_line = prompt(self.prompt_text, history=self.history)
                 if command_line.lower() in ['quit', 'q']:
                     break
 

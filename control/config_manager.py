@@ -8,8 +8,7 @@ from typing import Dict, Any
 class ConfigManager:
     def __init__(self, config_file: str = None):
         if config_file is None:
-            home = Path.home()
-            self.config_file = home / ".control_config.json"
+            self.config_file = Path(__file__).parent.parent / "control_config.json"
         else:
             self.config_file = Path(config_file)
 
@@ -18,40 +17,35 @@ class ConfigManager:
 
     def load_config(self):
         """Load configuration from file"""
-        try:
-            if self.config_file.exists():
-                with open(self.config_file, 'r') as f:
-                    self.variables = json.load(f)
-        except Exception as e:
-            print(f"Warning: Could not load config file: {e}")
-            self.variables = {}
+        with open(self.config_file, 'r') as f:
+            self.variables = json.load(f)
 
     def save_config(self):
         """Save configuration to file"""
-        try:
-            os.makedirs(self.config_file.parent, exist_ok=True)
-            with open(self.config_file, 'w') as f:
-                json.dump(self.variables, f, indent=2)
-        except Exception as e:
-            print(f"Warning: Could not save config file: {e}")
+        with open(self.config_file, 'w') as f:
+            json.dump(self.variables, f, indent=2)
 
-    def set_variable(self, name: str, value: str) -> bool:
+    def set_variable(self, name: str, value: str):
         """Set a variable value, attempting type conversion"""
-        try:
-            # Try to convert to appropriate type
-            if value.lower() in ['true', 'false']:
-                self.variables[name] = value.lower() == 'true'
-            elif value.replace('-', '').replace('.', '').isdigit():
-                # Try float first, then int
-                if '.' in value:
-                    self.variables[name] = float(value)
-                else:
-                    self.variables[name] = int(value)
+        # Try to convert to appropriate type
+        if value.lower() in ['true', 'false']:
+            self.variables[name] = value.lower() == 'true'
+        elif self._is_number(value):
+            # Try float first, then int
+            if '.' in value:
+                self.variables[name] = float(value)
             else:
-                # Keep as string
-                self.variables[name] = value
+                self.variables[name] = int(value)
+        else:
+            # Keep as string
+            self.variables[name] = value
+
+    def _is_number(self, value: str) -> bool:
+        """Check if string represents a valid number (int or float)"""
+        try:
+            float(value)
             return True
-        except Exception:
+        except ValueError:
             return False
 
     def get_variable(self, name: str) -> Any:
@@ -62,12 +56,9 @@ class ConfigManager:
         """Get all variables"""
         return self.variables.copy()
 
-    def delete_variable(self, name: str) -> bool:
+    def delete_variable(self, name: str):
         """Delete a variable"""
-        if name in self.variables:
-            del self.variables[name]
-            return True
-        return False
+        del self.variables[name]
 
     def variable_exists(self, name: str) -> bool:
         """Check if variable exists"""
