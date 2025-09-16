@@ -5,7 +5,7 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Any
 from dataclasses import dataclass
-from .teleopapi import TeleopApi
+from .robot_controller import RobotController, CommandResponse
 from .config_manager import ConfigManager
 
 @dataclass
@@ -16,18 +16,13 @@ class CommandResult:
 
 class CommandProcessor:
     def __init__(self):
-        self.teleop_api = None
         self.config_manager = ConfigManager()
+        self.robot_controller = RobotController(self.config_manager)
         self.cli = self._create_cli()
-
-    def _get_teleop_api(self):
-        if self.teleop_api is None:
-            self.teleop_api = TeleopApi()
-        return self.teleop_api
 
     def save_config(self):
         """Save configuration to file"""
-        self.config_manager.save_config()
+        self.robot_controller.save_config()
 
     def _create_cli(self):
         @click.group(invoke_without_command=True)
@@ -72,23 +67,21 @@ class CommandProcessor:
         @click.argument('distance', type=float)
         def dist(distance):
             """Move robot a specific distance in meters"""
-            try:
-                api = self._get_teleop_api()
-                api.move_dist(distance)
-                click.echo(f"Moved {distance} meters")
-            except Exception as e:
-                raise click.ClickException(f"Movement failed: {str(e)}")
+            result = self.robot_controller.move_distance(distance)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @move.command()
         @click.argument('seconds', type=float)
         def time(seconds):
             """Move robot at default speed for specified duration in seconds"""
-            try:
-                api = self._get_teleop_api()
-                api.move_time(seconds)
-                click.echo(f"Moved for {seconds} seconds")
-            except Exception as e:
-                raise click.ClickException(f"Movement failed: {str(e)}")
+            result = self.robot_controller.move_for_time(seconds)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @cli.group()
         def turn():
@@ -99,44 +92,76 @@ class CommandProcessor:
         @click.argument('seconds', type=float)
         def time(seconds):
             """Turn robot at default speed for specified duration in seconds"""
-            try:
-                api = self._get_teleop_api()
-                api.turn_time(seconds)
-                click.echo(f"Turned for {seconds} seconds")
-            except Exception as e:
-                raise click.ClickException(f"Turn failed: {str(e)}")
+            result = self.robot_controller.turn_for_time(seconds)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @turn.command()
         @click.argument('angle', type=float)
         def radians(angle):
             """Turn robot by specific angle in radians"""
-            try:
-                api = self._get_teleop_api()
-                api.turn_amount(angle)
-                click.echo(f"Turned {angle} radians")
-            except Exception as e:
-                raise click.ClickException(f"Turn failed: {str(e)}")
+            result = self.robot_controller.turn_by_radians(angle)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @turn.command()
         @click.argument('angle', type=float)
         def degrees(angle):
             """Turn robot by specific angle in degrees"""
-            try:
-                api = self._get_teleop_api()
-                api.turn_degrees(angle)
-                click.echo(f"Turned {angle} degrees")
-            except Exception as e:
-                raise click.ClickException(f"Turn failed: {str(e)}")
+            result = self.robot_controller.turn_by_degrees(angle)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @cli.command()
         def stop():
             """Stop the robot immediately"""
-            try:
-                api = self._get_teleop_api()
-                api.stop()
-                click.echo("Robot stopped")
-            except Exception as e:
-                raise click.ClickException(f"Stop failed: {str(e)}")
+            result = self.robot_controller.stop_robot()
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
+
+        @cli.group()
+        def nav():
+            """Navigation commands"""
+            pass
+
+        @nav.group()
+        def start():
+            """Start navigation services"""
+            pass
+
+        @start.command()
+        @click.option('--use-sim-time', is_flag=True, default=False, help='Use simulation time')
+        def stack(use_sim_time):
+            """Start navigation stack"""
+            result = self.robot_controller.start_navigation_stack(use_sim_time)
+            if result.success:
+                click.echo(result.message)
+                if result.data and 'process_id' in result.data:
+                    click.echo(f"Process ID: {result.data['process_id']}")
+            else:
+                raise click.ClickException(result.message)
+
+        @nav.group()
+        def kill():
+            """Kill navigation services"""
+            pass
+
+        @kill.command()
+        def stack():
+            """Kill navigation stack"""
+            result = self.robot_controller.kill_navigation_stack()
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @cli.group()
         def calibrate():
@@ -147,43 +172,46 @@ class CommandProcessor:
         @click.argument('meters', type=float)
         def square(meters):
             """Move robot in a square pattern for calibration"""
-            try:
-                api = self._get_teleop_api()
-                api.calibrate_square(meters)
-                click.echo(f"Completed square calibration with {meters}m sides")
-            except Exception as e:
-                raise click.ClickException(f"Calibration failed: {str(e)}")
+            result = self.robot_controller.calibrate_square(meters)
+            if result.success:
+                click.echo(result.message)
+            else:
+                raise click.ClickException(result.message)
 
         @cli.command()
         @click.argument('varname')
         @click.argument('value')
         def set(varname, value):
             """Set a variable to a value"""
-            self.config_manager.set_variable(varname, value)
-            stored_value = self.config_manager.get_variable(varname)
-            click.echo(f"Set {varname} = {stored_value} ({type(stored_value).__name__})")
+            result = self.robot_controller.set_variable(varname, value)
+            click.echo(result.message)
 
         @cli.command()
         @click.argument('varname', required=False)
         def show(varname):
             """Show variable value(s). Use 'show *' for all variables or 'show topics' for ROS topics"""
             if varname == 'topics':
-                try:
-                    api = self._get_teleop_api()
-                    topics = api.get_topics()
+                result = self.robot_controller.get_topics()
+                if result.success:
                     click.echo("Active ROS topics:")
-                    for topic_name, topic_types in topics:
-                        type_names = [t for t in topic_types]
-                        click.echo(f"  {topic_name} [{', '.join(type_names)}]")
-                except Exception as e:
-                    raise click.ClickException(f"Failed to get topics: {str(e)}")
+                    for topic in result.data['topics']:
+                        type_names = ', '.join(topic['types'])
+                        click.echo(f"  {topic['name']} [{type_names}]")
+                else:
+                    raise click.ClickException(result.message)
             elif varname and varname != '*':
-                value = self.config_manager.get_variable(varname)
-                click.echo(f"  {varname} = {value} ({type(value).__name__})")
+                result = self.robot_controller.get_variable(varname)
+                if result.success:
+                    click.echo(f"  {result.message}")
+                else:
+                    raise click.ClickException(result.message)
             else:
-                variables = self.config_manager.get_all_variables()
-                for name, value in variables.items():
-                    click.echo(f"  {name} = {value} ({type(value).__name__})")
+                result = self.robot_controller.get_all_variables()
+                if result.success:
+                    for name, value in result.data['variables'].items():
+                        click.echo(f"  {name} = {value} ({type(value).__name__})")
+                else:
+                    raise click.ClickException(result.message)
 
         return cli
 
