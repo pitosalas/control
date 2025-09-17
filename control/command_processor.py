@@ -129,18 +129,18 @@ class CommandProcessor:
 
         @cli.group()
         def nav():
-            """Navigation commands"""
+            """Navigation commands: 'nav start stack' or 'nav kill stack'"""
             pass
 
         @nav.group()
         def start():
-            """Start navigation services"""
+            """Start navigation services: 'nav start stack [--use-sim-time]'"""
             pass
 
         @start.command()
         @click.option('--use-sim-time', is_flag=True, default=False, help='Use simulation time')
         def stack(use_sim_time):
-            """Start navigation stack"""
+            """Start the ROS2 navigation stack (nav2)"""
             result = self.robot_controller.start_navigation_stack(use_sim_time)
             if result.success:
                 click.echo(result.message)
@@ -151,12 +151,12 @@ class CommandProcessor:
 
         @nav.group()
         def kill():
-            """Kill navigation services"""
+            """Stop navigation services: 'nav kill stack'"""
             pass
 
         @kill.command()
         def stack():
-            """Kill navigation stack"""
+            """Stop the running navigation stack"""
             result = self.robot_controller.kill_navigation_stack()
             if result.success:
                 click.echo(result.message)

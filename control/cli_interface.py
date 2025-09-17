@@ -9,7 +9,7 @@ class CLIInterface:
     def __init__(self):
         self.processor = CommandProcessor()
         self.prompt_text = "> "
-        history_file = Path(__file__).parent.parent / "command_history.txt"
+        history_file = Path.home() / ".config" / "control_command_history.txt"
         self.history = FileHistory(str(history_file))
 
     def run(self):

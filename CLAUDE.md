@@ -20,5 +20,10 @@
     * Avoid simple wrappers
     * Avoid 1 line functions and methods
     * Put a comment with each method or function ONLY if the name of the function is not sufficient by itself.
+    * Almost always use double quotes. Only use single quotes if there is a specific requirement to do so
+    
+
+# CURRENT.md
+    * Now read CURRENT.md and follow it's instructions
 
 

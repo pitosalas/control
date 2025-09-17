@@ -6,9 +6,17 @@ from pathlib import Path
 from typing import Dict, Any
 
 class ConfigManager:
+    DEFAULT_CONFIG = {
+        "linear_speed": 0.3,
+        "angular_speed": 0.4
+    }
+
     def __init__(self, config_file: str = None):
         if config_file is None:
-            self.config_file = Path(__file__).parent.parent / "control_config.json"
+            # Use user's home directory for writable config file
+            self.config_file = Path.home() / ".config" / "control_config.json"
+            # Create .config directory if it doesn't exist
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
         else:
             self.config_file = Path(config_file)
 
@@ -17,8 +25,12 @@ class ConfigManager:
 
     def load_config(self):
         """Load configuration from file"""
-        with open(self.config_file, 'r') as f:
-            self.variables = json.load(f)
+        try:
+            with open(self.config_file, 'r') as f:
+                self.variables = json.load(f)
+        except FileNotFoundError:
+            self.variables = self.DEFAULT_CONFIG.copy()
+            self.save_config()
 
     def save_config(self):
         """Save configuration to file"""
