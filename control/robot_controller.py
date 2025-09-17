@@ -161,6 +161,47 @@ class RobotController:
             return CommandResponse(True, f"Position: x={x:.3f}, y={y:.3f}", {"x": x, "y": y})
         return CommandResponse(False, "No position data available")
 
+    def turn_radians(self, radians: float) -> CommandResponse:
+        return self.movement.turn_radians(radians)
+
+    def turn_degrees(self, degrees: float) -> CommandResponse:
+        return self.movement.turn_degrees(degrees)
+
+    def get_robot_status(self) -> CommandResponse:
+        linear_speed = self.config.get_variable('linear_speed')
+        angular_speed = self.config.get_variable('angular_speed')
+
+        # Check node health
+        nodes_status = {
+            "movement_api": "running" if hasattr(self, 'movement') and self.movement else "not available",
+            "calibration_api": "running" if hasattr(self, 'calibration') and self.calibration else "not available",
+            "process_api": "running" if hasattr(self, 'process') and self.process else "not available"
+        }
+
+        status = {
+            "speeds": {
+                "linear": linear_speed,
+                "angular": angular_speed
+            },
+            "navigation": {
+                "nav_stack_running": self.nav_stack_process_id is not None
+            },
+            "nodes": nodes_status
+        }
+        return CommandResponse(True, "Robot status retrieved", {"status": status})
+
+    def get_all_variables(self) -> CommandResponse:
+        variables = self.config.get_all_variables()
+        return CommandResponse(True, "All variables retrieved", {"variables": variables})
+
+    def list_topics(self) -> CommandResponse:
+        try:
+            topics = self.movement.get_topic_names_and_types()
+            topic_list = [name for name, _ in topics]
+            return CommandResponse(True, "Active ROS topics", {"topics": topic_list})
+        except Exception as e:
+            return CommandResponse(False, f"Failed to list topics: {str(e)}")
+
     def save_config(self):
         """Save configuration to file"""
         self.config.save_config()

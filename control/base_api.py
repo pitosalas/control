@@ -16,7 +16,6 @@ class BaseApi(Node, ABC):
         super().__init__(node_name)
 
         self.config = config_manager or ConfigManager()
-        self.get_logger().info(f"{node_name} node initialized")
 
     def get_topics(self):
         return self.get_topic_names_and_types()

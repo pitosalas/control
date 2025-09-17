@@ -1,0 +1,11 @@
+here is a brand new spec:
+* print a prompt
+* accept commands with one word: help and exit
+* accept commands with two words "show design" "print answer"
+* accept commands with parameters "print answer 14"
+accept commands with parameters and options: "show design -brief" and "print-answer 1 12.00"
+in all cases the commands just call a separate function that just prints the sentence "running commend xxxx"
+Implement this spec in separate standalone programs for
+click
+argparse
+cmd

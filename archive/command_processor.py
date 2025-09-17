@@ -28,9 +28,9 @@ class CommandProcessor:
         @click.group(invoke_without_command=True)
         @click.pass_context
         def cli(ctx):
-            """Robot control commands"""
             if ctx.invoked_subcommand is None:
-                click.echo("Type a command. Use --help for available commands.")
+                # Don't print anything - let individual commands handle their output
+                pass
 
         @cli.command()
         @click.argument('command', required=False)
@@ -63,7 +63,7 @@ class CommandProcessor:
             """Move the robot"""
             pass
 
-        @move.command(context_settings={'ignore_unknown_options': True, 'allow_extra_args': True})
+        @move.command()
         @click.argument('distance', type=float)
         def dist(distance):
             """Move robot a specific distance in meters"""
@@ -241,6 +241,10 @@ class CommandProcessor:
                     return CommandResult(False, error_msg)
                 except click.UsageError as e:
                     return CommandResult(False, str(e))
+                except click.BadParameter as e:
+                    return CommandResult(False, str(e))
+                except click.MissingParameter as e:
+                    return CommandResult(False, str(e))
                 except SystemExit:
                     # Click sometimes raises SystemExit, capture any output
                     output = stdout_buffer.getvalue().strip()
@@ -251,3 +255,6 @@ class CommandProcessor:
 
         except Exception as e:
             return CommandResult(False, f"Command error: {str(e)}")
+
+        # If we reach here, something unexpected happened
+        return CommandResult(False, "Unknown command processing error")

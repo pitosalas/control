@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
-from .command_processor import CommandProcessor
+import click
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from pathlib import Path
+from .click_cli import ClickCLI
+
 
 class CLIInterface:
     def __init__(self):
-        self.processor = CommandProcessor()
+        self.click_cli = ClickCLI()
+        self.cli = self.click_cli.get_cli()
         self.prompt_text = "> "
         history_file = Path.home() / ".config" / "control_command_history.txt"
         self.history = FileHistory(str(history_file))
@@ -16,29 +19,48 @@ class CLIInterface:
         print("Robot Command Interface")
         print("Type 'help' for commands or 'exit' to quit")
 
+        self._interactive_mode()
+
+    def _interactive_mode(self):
+        """Interactive mode using testskelclick.py pattern."""
         while True:
             try:
-                command_line = prompt(self.prompt_text, history=self.history)
-                if command_line.lower() in ['quit', 'q']:
+                # Get user input with history
+                user_input = prompt(self.prompt_text, history=self.history).strip()
+
+                # Handle empty input
+                if not user_input:
+                    continue
+
+                # Handle exit commands
+                if user_input.lower() in ['exit', 'quit', 'q']:
+                    print("Goodbye!")
                     break
 
-                if command_line.strip():
-                    result = self.processor.process_command(command_line)
-                    if result.success:
-                        if result.message:
-                            print(f"✓ {result.message}")
-                        # Check if exit command was called
-                        if result.data and result.data.get("exit"):
-                            break
-                    else:
-                        if result.message:
-                            print(f"✗ {result.message}")
+                # Parse and execute command using Click
+                try:
+                    args = user_input.split()
+
+                    # Create context and invoke command with resilient parsing
+                    with self.cli.make_context('cli', args, resilient_parsing=True) as ctx:
+                        try:
+                            self.cli.invoke(ctx)
+                        except click.UsageError as e:
+                            print(f"✗ {e}")
+                        except click.ClickException as e:
+                            e.show()
+                        except SystemExit:
+                            # Prevent program exit on command errors
+                            pass
+
+                except Exception as e:
+                    print(f"✗ Error parsing command: {e}")
 
             except KeyboardInterrupt:
-                print("\nExiting...")
-                break
+                print("\nUse 'exit' to quit.")
             except EOFError:
+                print("\nGoodbye!")
                 break
 
         # Save configuration on exit
-        self.processor.save_config()
+        self.click_cli.config_manager.save_config()
