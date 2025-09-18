@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from .cli_interface import CLIInterface
+from .interface.cli_interface import CLIInterface
 
 def main():
     interface = CLIInterface()

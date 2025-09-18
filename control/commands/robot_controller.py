@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
-from .movement_api import MovementApi
-from .calibration_api import CalibrationApi
-from .process_api import ProcessApi
+from ..ros2_api.movement_api import MovementApi
+from ..ros2_api.calibration_api import CalibrationApi
+from ..ros2_api.process_api import ProcessApi
 from .config_manager import ConfigManager
 
 @dataclass
@@ -26,6 +26,7 @@ class RobotController:
 
         # Track singleton processes
         self.nav_stack_process_id = None
+        self.slam_process_id = None
 
     def move_distance(self, distance: float) -> CommandResponse:
         self.movement.move_dist(distance)
@@ -89,12 +90,54 @@ class RobotController:
         return CommandResponse(True, f"Started navigation stack", {"process_id": self.nav_stack_process_id})
 
     def save_current_map(self, filename: str) -> CommandResponse:
-        process_id = self.process.save_map(filename)
-        return CommandResponse(True, f"Saving map to {filename}", {"process_id": process_id})
+        # Create maps directory if it doesn't exist
+        from pathlib import Path
+        maps_dir = Path("maps")
+        maps_dir.mkdir(exist_ok=True)
+
+        # Create full path for the map file
+        map_path = maps_dir / filename
+
+        process_id = self.process.save_map(str(map_path))
+        return CommandResponse(True, f"Saving map to {map_path}", {"process_id": process_id})
+
+    def list_maps(self) -> CommandResponse:
+        from pathlib import Path
+        maps_dir = Path("maps")
+
+        if not maps_dir.exists():
+            return CommandResponse(True, "No maps directory found", {"maps": []})
+
+        # Find all .yaml files (map metadata files)
+        yaml_files = list(maps_dir.glob("*.yaml"))
+
+        if not yaml_files:
+            return CommandResponse(True, "No maps found in maps/ folder", {"maps": []})
+
+        # Get just the filenames without extension
+        map_names = [f.stem for f in yaml_files]
+        map_names.sort()
+
+        return CommandResponse(True, f"Found {len(map_names)} maps", {"maps": map_names})
+
+    def load_map(self, filename: str) -> CommandResponse:
+        from pathlib import Path
+        maps_dir = Path("maps")
+        map_path = maps_dir / f"{filename}.yaml"
+
+        if not map_path.exists():
+            return CommandResponse(False, f"Map '{filename}' not found in maps/ folder")
+
+        process_id = self.process.load_map(str(map_path))
+        return CommandResponse(True, f"Loading map {filename}", {"process_id": process_id})
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
-        process_id = self.process.start_slam(use_sim_time, **kwargs)
-        return CommandResponse(True, f"Started SLAM", {"process_id": process_id})
+        # Kill existing SLAM if running
+        if self.slam_process_id and self.process.is_process_running(self.slam_process_id):
+            self.process.kill_process(self.slam_process_id)
+
+        self.slam_process_id = self.process.start_slam(use_sim_time, **kwargs)
+        return CommandResponse(True, f"Started SLAM", {"process_id": self.slam_process_id})
 
     def launch_file(self, package: str, launch_file: str, **kwargs) -> CommandResponse:
         process_id = self.process.launch_file(package, launch_file, **kwargs)
@@ -112,9 +155,11 @@ class RobotController:
         """Kill managed process"""
         success = self.process.kill_process(process_id)
         if success:
-            # Clear nav stack ID if it was killed
+            # Clear process IDs if they were killed
             if process_id == self.nav_stack_process_id:
                 self.nav_stack_process_id = None
+            if process_id == self.slam_process_id:
+                self.slam_process_id = None
             return CommandResponse(True, f"Killed process {process_id}")
         return CommandResponse(False, f"Failed to kill process {process_id}")
 
@@ -132,6 +177,20 @@ class RobotController:
             return CommandResponse(True, "Navigation stack stopped")
         return CommandResponse(False, "Failed to stop navigation stack")
 
+    def stop_slam(self) -> CommandResponse:
+        if not self.slam_process_id:
+            return CommandResponse(False, "No SLAM running")
+
+        if not self.process.is_process_running(self.slam_process_id):
+            self.slam_process_id = None
+            return CommandResponse(False, "SLAM not running")
+
+        success = self.process.kill_process(self.slam_process_id)
+        if success:
+            self.slam_process_id = None
+            return CommandResponse(True, "SLAM stopped")
+        return CommandResponse(False, "Failed to stop SLAM")
+
     def get_active_processes(self) -> CommandResponse:
         processes = self.process.get_running_processes()
         return CommandResponse(True, "Active processes", {"processes": processes})
@@ -144,11 +203,6 @@ class RobotController:
         running = self.process.is_process_running(process_id)
         status = "running" if running else "stopped"
         return CommandResponse(True, f"Process {process_id} is {status}", {"running": running})
-
-    def set_robot_speeds(self, linear: float, angular: float) -> CommandResponse:
-        self.movement.set_linear_speed(linear)
-        self.movement.set_angular_speed(angular)
-        return CommandResponse(True, f"Set speeds: linear={linear}, angular={angular}")
 
     def move_continuous(self, linear: float, angular: float) -> CommandResponse:
         self.movement.move_continuous(linear, angular)
@@ -184,7 +238,8 @@ class RobotController:
                 "angular": angular_speed
             },
             "navigation": {
-                "nav_stack_running": self.nav_stack_process_id is not None
+                "nav_stack_running": self.nav_stack_process_id is not None,
+                "slam_running": self.slam_process_id is not None
             },
             "nodes": nodes_status
         }

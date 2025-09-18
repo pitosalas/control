@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 import time
 import math
 from .base_api import BaseApi
-from .config_manager import ConfigManager
+from ..commands.config_manager import ConfigManager
 
 class MovementApi(BaseApi):
     """

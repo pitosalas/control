@@ -42,7 +42,7 @@ class CLIInterface:
                     args = user_input.split()
 
                     # Create context and invoke command with resilient parsing
-                    with self.cli.make_context('cli', args, resilient_parsing=True) as ctx:
+                    with self.cli.make_context('cli', args, resilient_parsing=True, allow_extra_args=True, allow_interspersed_args=False) as ctx:
                         try:
                             self.cli.invoke(ctx)
                         except click.UsageError as e:

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import pytest
 from unittest.mock import Mock, MagicMock
-from control.command_dispatcher import CommandDispatcher
-from control.parameter_def import ParameterDef
-from control.command_def import CommandDef
-from control.robot_controller import CommandResponse
+from control.commands.command_dispatcher import CommandDispatcher
+from control.commands.parameter_def import ParameterDef
+from control.commands.command_def import CommandDef
+from control.commands.robot_controller import CommandResponse
 
 
 class TestCommandDispatcher:
@@ -15,7 +15,6 @@ class TestCommandDispatcher:
         """Create a mock robot controller."""
         mock = Mock()
         mock.move_distance.return_value = CommandResponse(True, "Moved 1.0 meters")
-        mock.set_robot_speeds.return_value = CommandResponse(True, "Speeds set")
         mock.get_robot_status.return_value = CommandResponse(True, "Status retrieved", {"status": {"linear": 0.3}})
         return mock
 
@@ -30,7 +29,6 @@ class TestCommandDispatcher:
 
         assert len(commands) > 0
         assert "move.distance" in commands
-        assert "robot.speeds" in commands
         assert "nav.start" in commands
 
     def test_execute_simple_command(self, dispatcher, mock_robot_controller):
@@ -39,13 +37,6 @@ class TestCommandDispatcher:
 
         assert result.success is True
         mock_robot_controller.move_distance.assert_called_once_with(distance=1.5)
-
-    def test_execute_command_with_multiple_params(self, dispatcher, mock_robot_controller):
-        """Test executing command with multiple parameters."""
-        result = dispatcher.execute("robot.speeds", {"linear": 0.5, "angular": 0.3})
-
-        assert result.success is True
-        mock_robot_controller.set_robot_speeds.assert_called_once_with(linear=0.5, angular=0.3)
 
     def test_execute_command_with_optional_params(self, dispatcher, mock_robot_controller):
         """Test executing command with optional parameters."""

@@ -13,15 +13,6 @@ def build_control_commands() -> Dict[str, CommandDef]:
             description="Stop robot movement",
             group="control"
         ),
-        "robot.speeds": CommandDef(
-            method_name="set_robot_speeds",
-            parameters=[
-                ParameterDef("linear", float, description="Linear speed in m/s"),
-                ParameterDef("angular", float, description="Angular speed in rad/s")
-            ],
-            description="Set robot movement speeds",
-            group="control"
-        ),
         "robot.status": CommandDef(
             method_name="get_robot_status",
             parameters=[],

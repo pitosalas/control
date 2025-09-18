@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import click
 import sys
-from .command_dispatcher import CommandDispatcher
-from .robot_controller import RobotController
-from .config_manager import ConfigManager
+from ..commands.command_dispatcher import CommandDispatcher
+from ..commands.robot_controller import RobotController
+from ..commands.config_manager import ConfigManager
 
 
 class ClickCLI:
@@ -18,7 +18,7 @@ class ClickCLI:
     def _create_cli(self):
         """Create the Click CLI with dispatcher integration."""
 
-        @click.group(invoke_without_command=True)
+        @click.group(invoke_without_command=True, context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': True})
         @click.pass_context
         def cli(ctx):
             """Robot Command Interface"""
@@ -63,7 +63,7 @@ class ClickCLI:
             self._handle_result(result)
 
         # Movement commands
-        @cli.group()
+        @cli.group(context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': True})
         def move():
             """Movement commands"""
             pass
@@ -83,7 +83,7 @@ class ClickCLI:
             self._handle_result(result)
 
         # Turn commands
-        @cli.group()
+        @cli.group(context_settings={'allow_interspersed_args': False})
         def turn():
             """Turn commands"""
             pass
@@ -122,14 +122,6 @@ class ClickCLI:
             self._handle_result(result)
 
         @robot.command()
-        @click.argument('linear', type=float)
-        @click.argument('angular', type=float)
-        def speeds(linear, angular):
-            """Set robot movement speeds"""
-            result = self.dispatcher.execute("robot.speeds", {"linear": linear, "angular": angular})
-            self._handle_result(result)
-
-        @robot.command()
         def status():
             """Get current robot status"""
             result = self.dispatcher.execute("robot.status", {})
@@ -152,6 +144,51 @@ class ClickCLI:
         def stop():
             """Stop the navigation stack"""
             result = self.dispatcher.execute("nav.stop", {})
+            self._handle_result(result)
+
+        # SLAM commands
+        @cli.group()
+        def slam():
+            """SLAM commands"""
+            pass
+
+        @slam.command()
+        @click.option('--sim-time', is_flag=True, help='Use simulation time')
+        def start(sim_time):
+            """Start SLAM"""
+            result = self.dispatcher.execute("slam.start", {"use_sim_time": sim_time})
+            self._handle_result(result)
+
+        @slam.command()
+        def stop():
+            """Stop SLAM"""
+            result = self.dispatcher.execute("slam.stop", {})
+            self._handle_result(result)
+
+        # Map commands
+        @cli.group()
+        def map():
+            """Map commands"""
+            pass
+
+        @map.command()
+        @click.argument('filename')
+        def save(filename):
+            """Save current map to maps/ folder"""
+            result = self.dispatcher.execute("map.save", {"filename": filename})
+            self._handle_result(result)
+
+        @map.command()
+        def list():
+            """List available maps in maps/ folder"""
+            result = self.dispatcher.execute("map.list", {})
+            self._handle_result(result)
+
+        @map.command()
+        @click.argument('filename')
+        def load(filename):
+            """Load a map from maps/ folder"""
+            result = self.dispatcher.execute("map.load", {"filename": filename})
             self._handle_result(result)
 
         # Configuration commands
@@ -239,7 +276,7 @@ class ClickCLI:
                     groups[group_name].append((full_cmd, description))
 
             elif name not in ['help', 'exit']:
-                # Standalone command
+                # Standalone command - these are legacy/deprecated
                 if 'OTHER' not in groups:
                     groups['OTHER'] = []
                 description = command.help or command.__doc__ or "No description"
@@ -249,22 +286,14 @@ class ClickCLI:
         if 'OTHER' not in groups:
             groups['OTHER'] = []
         groups['OTHER'].extend([
-            ('help', 'Show this help message'),
+            ('help [command]', 'Show help for all commands or specific command'),
             ('exit', 'Exit the program')
         ])
 
-        # Format the help text without headers
-        all_commands = []
+        # Format the help text with no indentation in alphabetical order
         for group_name in sorted(groups.keys()):
             for cmd, desc in groups[group_name]:
-                all_commands.append((cmd, desc))
-
-        for cmd, desc in all_commands:
-            # Indent subcommands (commands with spaces) by extra 2 spaces
-            if ' ' in cmd:
-                help_text += f"    {cmd:<28} - {desc}\n"
-            else:
-                help_text += f"  {cmd:<30} - {desc}\n"
+                help_text += f"{cmd:<32} - {desc}\n"
 
         return help_text
 
@@ -293,7 +322,7 @@ class ClickCLI:
                     param_str = " ".join(params)
                     full_cmd = f"{command_name} {subname} {param_str}".strip()
                     description = subcmd.help or subcmd.__doc__ or "No description"
-                    help_text += f"    {full_cmd:<33} - {description}\n"
+                    help_text += f"{full_cmd:<32} - {description}\n"
 
                 return help_text
             else:

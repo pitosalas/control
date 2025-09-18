@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Main entry point for running the control CLI."""
 
-from .cli_interface import CLIInterface
+from .interface.cli_interface import CLIInterface
 
 def main():
     """Run the CLI interface."""

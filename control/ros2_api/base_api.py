@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from abc import ABC
-from .config_manager import ConfigManager
+from ..commands.config_manager import ConfigManager
 
 class BaseApi(Node, ABC):
     """

@@ -2,7 +2,7 @@
 import math
 from .base_api import BaseApi
 from .movement_api import MovementApi
-from .config_manager import ConfigManager
+from ..commands.config_manager import ConfigManager
 
 class CalibrationApi(BaseApi):
     """

@@ -8,7 +8,7 @@ import time
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 from .base_api import BaseApi
-from .config_manager import ConfigManager
+from ..commands.config_manager import ConfigManager
 
 @dataclass
 class ProcessInfo:
@@ -73,6 +73,11 @@ class ProcessApi(BaseApi):
     def save_map(self, filename: str) -> str:
         """Save current map using map_saver_cli"""
         command = f"ros2 run nav2_map_server map_saver_cli -f {filename}"
+        return self.launch_command(command)
+
+    def load_map(self, map_file: str) -> str:
+        """Load a map using nav2_map_server"""
+        command = f"ros2 run nav2_map_server map_server --ros-args -p yaml_filename:={map_file}"
         return self.launch_command(command)
 
     def start_navigation(self, use_sim_time: bool = False, **kwargs) -> str:
