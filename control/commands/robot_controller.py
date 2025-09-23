@@ -24,9 +24,136 @@ class RobotController:
         self.calibration = CalibrationApi(self.movement, self.config)
         self.process = ProcessApi(self.config)
 
-        # Track singleton processes
-        self.nav_stack_process_id = None
-        self.slam_process_id = None
+        # Track singleton launch processes
+        self.launch_process_ids = {
+            "nav": None,
+            "slam": None,
+            "map_server": None
+        }
+
+    def _is_launch_running(self, launch_type: str) -> bool:
+        """Check if a specific launch type is running"""
+        process_id = self.launch_process_ids.get(launch_type)
+        if not process_id:
+            return False
+        return self.process.is_process_running(process_id)
+
+    def _check_launch_conflict(self, launch_type: str) -> Optional[CommandResponse]:
+        """Check if launch type is already running and return error response if so"""
+        if self._is_launch_running(launch_type):
+            return CommandResponse(False, f"{launch_type} is already running, stop it first")
+        return None
+
+    def _start_launch(self, launch_type: str, **params) -> CommandResponse:
+        """Start a launch process with conflict checking"""
+        conflict = self._check_launch_conflict(launch_type)
+        if conflict:
+            return conflict
+
+        try:
+            # Start new launch process using ProcessApi
+            process_id = self.process.launch_by_type(launch_type, **params)
+            self.launch_process_ids[launch_type] = process_id
+            return CommandResponse(True, f"Started {launch_type}", {"process_id": process_id})
+        except ValueError as e:
+            return CommandResponse(False, str(e))
+
+    def _stop_launch(self, launch_type: str) -> CommandResponse:
+        """Stop a specific launch type"""
+        process_id = self.launch_process_ids.get(launch_type)
+        if not process_id:
+            return CommandResponse(False, f"No {launch_type} running")
+
+        if not self.process.is_process_running(process_id):
+            self.launch_process_ids[launch_type] = None
+            return CommandResponse(False, f"{launch_type} not running")
+
+        success = self.process.kill_by_type(launch_type, process_id)
+        if success:
+            self.launch_process_ids[launch_type] = None
+            return CommandResponse(True, f"{launch_type} stopped")
+        return CommandResponse(False, f"Failed to stop {launch_type}")
+
+    def launch_list(self) -> CommandResponse:
+        """List all available launch types with descriptions"""
+        launch_types = []
+        for launch_type in self.process.get_available_launch_types():
+            config = self.process.get_launch_config(launch_type)
+            is_running = self._is_launch_running(launch_type)
+            launch_types.append({
+                "type": launch_type,
+                "description": config.description,
+                "running": is_running
+            })
+
+        return CommandResponse(True, "Available launch types", {"launch_types": launch_types})
+
+    def launch_start(self, launch_type: str, **kwargs) -> CommandResponse:
+        """Start a launch process by type"""
+        return self._start_launch(launch_type, **kwargs)
+
+    def launch_kill(self, launch_type: str) -> CommandResponse:
+        """Stop a launch process by type"""
+        return self._stop_launch(launch_type)
+
+    def launch_status(self, launch_type: str = None) -> CommandResponse:
+        """Get status of launch processes"""
+        if launch_type:
+            # Status for specific launch type
+            process_id = self.launch_process_ids.get(launch_type)
+            if not process_id:
+                return CommandResponse(True, f"{launch_type} status", {
+                    "launch_type": launch_type,
+                    "running": False,
+                    "process_id": None,
+                    "pid": None
+                })
+
+            is_running = self.process.is_process_running(process_id)
+            if not is_running:
+                self.launch_process_ids[launch_type] = None
+
+            process_info = self.process.processes.get(process_id)
+            pid = process_info.pid if process_info else None
+
+            return CommandResponse(True, f"{launch_type} status", {
+                "launch_type": launch_type,
+                "running": is_running,
+                "process_id": process_id if is_running else None,
+                "pid": pid if is_running else None
+            })
+        else:
+            # Status for all launch types
+            return CommandResponse(True, "All launch status", {
+                "launches": self._get_launch_status()
+            })
+
+    def _get_launch_status(self) -> Dict[str, Dict[str, Any]]:
+        """Get status of all tracked launch processes with PIDs"""
+        status = {}
+        for launch_type, process_id in self.launch_process_ids.items():
+            if process_id and self.process.is_process_running(process_id):
+                process_info = self.process.processes.get(process_id)
+                pid = process_info.pid if process_info else "unknown"
+                status[launch_type] = {
+                    "running": True,
+                    "process_id": process_id,
+                    "pid": pid
+                }
+            else:
+                # Clean up stale process IDs
+                if process_id:
+                    self.launch_process_ids[launch_type] = None
+                status[launch_type] = {
+                    "running": False,
+                    "process_id": None,
+                    "pid": None
+                }
+        return status
+
+    def _get_process_status(self) -> Dict[str, Dict[str, Any]]:
+        """Get status of all tracked processes with PIDs - now using launch tracking"""
+        return self._get_launch_status()
 
     def move_distance(self, distance: float) -> CommandResponse:
         self.movement.move_dist(distance)
@@ -82,12 +209,7 @@ class RobotController:
         return CommandResponse(True, "Robot status", {"status": status})
 
     def start_navigation_stack(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
-        # Kill existing nav stack if running
-        if self.nav_stack_process_id and self.process.is_process_running(self.nav_stack_process_id):
-            self.process.kill_process(self.nav_stack_process_id)
-
-        self.nav_stack_process_id = self.process.start_navigation(use_sim_time, **kwargs)
-        return CommandResponse(True, f"Started navigation stack", {"process_id": self.nav_stack_process_id})
+        return self._start_launch("nav", use_sim_time=use_sim_time, **kwargs)
 
     def save_current_map(self, filename: str) -> CommandResponse:
         # Create maps directory if it doesn't exist
@@ -98,8 +220,11 @@ class RobotController:
         # Create full path for the map file
         map_path = maps_dir / filename
 
-        process_id = self.process.save_map(str(map_path))
-        return CommandResponse(True, f"Saving map to {map_path}", {"process_id": process_id})
+        return self._start_process(
+            "map_save",
+            "map save",
+            lambda: self.process.save_map(str(map_path))
+        )
 
     def list_maps(self) -> CommandResponse:
         from pathlib import Path
@@ -128,16 +253,14 @@ class RobotController:
         if not map_path.exists():
             return CommandResponse(False, f"Map '{filename}' not found in maps/ folder")
 
-        process_id = self.process.load_map(str(map_path))
-        return CommandResponse(True, f"Loading map {filename}", {"process_id": process_id})
+        return self._start_process(
+            "map_load",
+            "map load",
+            lambda: self.process.load_map(str(map_path))
+        )
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
-        # Kill existing SLAM if running
-        if self.slam_process_id and self.process.is_process_running(self.slam_process_id):
-            self.process.kill_process(self.slam_process_id)
-
-        self.slam_process_id = self.process.start_slam(use_sim_time, **kwargs)
-        return CommandResponse(True, f"Started SLAM", {"process_id": self.slam_process_id})
+        return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)
 
     def launch_file(self, package: str, launch_file: str, **kwargs) -> CommandResponse:
         process_id = self.process.launch_file(package, launch_file, **kwargs)
@@ -155,41 +278,25 @@ class RobotController:
         """Kill managed process"""
         success = self.process.kill_process(process_id)
         if success:
-            # Clear process IDs if they were killed
-            if process_id == self.nav_stack_process_id:
-                self.nav_stack_process_id = None
-            if process_id == self.slam_process_id:
-                self.slam_process_id = None
+            # Clear launch process IDs if they were killed
+            for launch_type, tracked_id in self.launch_process_ids.items():
+                if tracked_id == process_id:
+                    self.launch_process_ids[launch_type] = None
+                    break
             return CommandResponse(True, f"Killed process {process_id}")
         return CommandResponse(False, f"Failed to kill process {process_id}")
 
     def kill_navigation_stack(self) -> CommandResponse:
-        if not self.nav_stack_process_id:
-            return CommandResponse(False, "No navigation stack running")
-
-        if not self.process.is_process_running(self.nav_stack_process_id):
-            self.nav_stack_process_id = None
-            return CommandResponse(False, "Navigation stack not running")
-
-        success = self.process.kill_process(self.nav_stack_process_id)
-        if success:
-            self.nav_stack_process_id = None
-            return CommandResponse(True, "Navigation stack stopped")
-        return CommandResponse(False, "Failed to stop navigation stack")
+        return self._stop_launch("nav")
 
     def stop_slam(self) -> CommandResponse:
-        if not self.slam_process_id:
-            return CommandResponse(False, "No SLAM running")
+        return self._stop_launch("slam")
 
-        if not self.process.is_process_running(self.slam_process_id):
-            self.slam_process_id = None
-            return CommandResponse(False, "SLAM not running")
+    def stop_map_save(self) -> CommandResponse:
+        return self._stop_process("map_save", "map save")
 
-        success = self.process.kill_process(self.slam_process_id)
-        if success:
-            self.slam_process_id = None
-            return CommandResponse(True, "SLAM stopped")
-        return CommandResponse(False, "Failed to stop SLAM")
+    def stop_map_load(self) -> CommandResponse:
+        return self._stop_process("map_load", "map load")
 
     def get_active_processes(self) -> CommandResponse:
         processes = self.process.get_running_processes()
@@ -237,10 +344,7 @@ class RobotController:
                 "linear": linear_speed,
                 "angular": angular_speed
             },
-            "navigation": {
-                "nav_stack_running": self.nav_stack_process_id is not None,
-                "slam_running": self.slam_process_id is not None
-            },
+            "processes": self._get_process_status(),
             "nodes": nodes_status
         }
         return CommandResponse(True, "Robot status retrieved", {"status": status})

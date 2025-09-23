@@ -19,6 +19,35 @@ class ProcessInfo:
     pid: int
     start_time: float
 
+@dataclass
+class LaunchConfig:
+    launch_type: str
+    command_template: str
+    description: str
+    default_params: Dict[str, str]
+
+# Static launch configuration table
+LAUNCH_CONFIGS = {
+    "nav": LaunchConfig(
+        launch_type="nav",
+        command_template="ros2 launch nav2_bringup navigation_launch.py {params}",
+        description="Navigation stack with path planning and obstacle avoidance",
+        default_params={"use_sim_time": "false"}
+    ),
+    "slam": LaunchConfig(
+        launch_type="slam",
+        command_template="ros2 launch slam_toolbox online_async_launch.py {params}",
+        description="SLAM mapping and localization",
+        default_params={"use_sim_time": "false"}
+    ),
+    "map_server": LaunchConfig(
+        launch_type="map_server",
+        command_template="ros2 run nav2_map_server map_server {params}",
+        description="Map server for loading and saving maps",
+        default_params={}
+    )
+}
+
 class ProcessApi(BaseApi):
     """
     ROS2 process management API for launching and controlling external processes.
@@ -28,6 +57,58 @@ class ProcessApi(BaseApi):
     def __init__(self, config_manager: ConfigManager = None):
         super().__init__('process_api', config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
+
+    def get_available_launch_types(self) -> List[str]:
+        """Get list of available launch types"""
+        return list(LAUNCH_CONFIGS.keys())
+
+    def get_launch_config(self, launch_type: str) -> Optional[LaunchConfig]:
+        """Get launch configuration for a specific type"""
+        return LAUNCH_CONFIGS.get(launch_type)
+
+    def _format_launch_params(self, params: Dict[str, str]) -> str:
+        """Format parameters for launch command"""
+        if not params:
+            return ""
+        param_parts = []
+        for key, value in params.items():
+            param_parts.append(f"{key}:={value}")
+        return " ".join(param_parts)
+
+    def launch_by_type(self, launch_type: str, **params) -> str:
+        """Launch a process by launch type with optional parameters"""
+        config = self.get_launch_config(launch_type)
+        if not config:
+            raise ValueError(f"Unknown launch type: {launch_type}")
+
+        # Merge default params with provided params
+        final_params = config.default_params.copy()
+        final_params.update({k: str(v) for k, v in params.items()})
+
+        # Format parameters and build command
+        params_str = self._format_launch_params(final_params)
+        command = config.command_template.format(params=params_str).strip()
+
+        self.log_info(f"Launching {launch_type}: {command}")
+        return self.launch_command(command)
+
+    def kill_by_type(self, launch_type: str, tracked_process_id: str) -> bool:
+        """Kill a process by launch type using its tracked process ID"""
+        if not tracked_process_id:
+            self.log_warn(f"No process ID provided for {launch_type}")
+            return False
+
+        return self.kill_process(tracked_process_id)
+
+    def get_launch_status(self, launch_type: str = None) -> Dict:
+        """Get status of launch processes"""
+        if launch_type:
+            # Return status for specific launch type (requires external tracking)
+            # This will be handled by RobotController which tracks process IDs
+            return {"launch_type": launch_type, "status": "unknown"}
+        else:
+            # Return status for all tracked processes
+            return self.get_running_processes()
 
     def launch_command(self, command: str) -> str:
         """Launch shell command and return process ID"""

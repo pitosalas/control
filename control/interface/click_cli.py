@@ -191,6 +191,18 @@ class ClickCLI:
             result = self.dispatcher.execute("map.load", {"filename": filename})
             self._handle_result(result)
 
+        @map.command()
+        def stop_save():
+            """Stop map save operation"""
+            result = self.dispatcher.execute("map.stop_save", {})
+            self._handle_result(result)
+
+        @map.command()
+        def stop_load():
+            """Stop map load operation"""
+            result = self.dispatcher.execute("map.stop_load", {})
+            self._handle_result(result)
+
         # Configuration commands
         @cli.group()
         def config():

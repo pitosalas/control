@@ -6,6 +6,7 @@ from .parameter_def import ParameterDef
 from .movement_commands import build_movement_commands
 from .control_commands import build_control_commands
 from .navigation_commands import build_navigation_commands
+from .launch_commands import build_launch_commands
 from .system_commands import build_system_commands
 
 
@@ -25,6 +26,7 @@ class CommandDispatcher:
         commands.update(build_movement_commands())
         commands.update(build_control_commands())
         commands.update(build_navigation_commands())
+        commands.update(build_launch_commands())
         commands.update(build_system_commands())
         return commands
 

@@ -5,38 +5,8 @@ from .parameter_def import ParameterDef
 
 
 def build_navigation_commands() -> Dict[str, CommandDef]:
-    """Build navigation command definitions."""
+    """Build navigation command definitions - now only contains map commands."""
     return {
-        "nav.start": CommandDef(
-            method_name="start_navigation_stack",
-            parameters=[
-                ParameterDef("use_sim_time", bool, required=False, default=False,
-                           description="Use simulation time")
-            ],
-            description="Start the navigation stack",
-            group="navigation"
-        ),
-        "nav.stop": CommandDef(
-            method_name="kill_navigation_stack",
-            parameters=[],
-            description="Stop the navigation stack",
-            group="navigation"
-        ),
-        "slam.start": CommandDef(
-            method_name="start_slam",
-            parameters=[
-                ParameterDef("use_sim_time", bool, required=False, default=False,
-                           description="Use simulation time")
-            ],
-            description="Start SLAM",
-            group="slam"
-        ),
-        "slam.stop": CommandDef(
-            method_name="stop_slam",
-            parameters=[],
-            description="Stop SLAM",
-            group="slam"
-        ),
         "map.save": CommandDef(
             method_name="save_current_map",
             parameters=[
@@ -57,6 +27,18 @@ def build_navigation_commands() -> Dict[str, CommandDef]:
                 ParameterDef("filename", str, description="Map filename (without extension)")
             ],
             description="Load a map from maps/ folder",
+            group="map"
+        ),
+        "map.stop_save": CommandDef(
+            method_name="stop_map_save",
+            parameters=[],
+            description="Stop map save operation",
+            group="map"
+        ),
+        "map.stop_load": CommandDef(
+            method_name="stop_map_load",
+            parameters=[],
+            description="Stop map load operation",
             group="map"
         )
     }
