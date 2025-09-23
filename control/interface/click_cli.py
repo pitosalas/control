@@ -127,42 +127,44 @@ class ClickCLI:
             result = self.dispatcher.execute("robot.status", {})
             self._handle_result(result)
 
-        # Navigation commands
+        # Launch commands
         @cli.group()
-        def nav():
-            """Navigation commands"""
+        def launch():
+            """Launch commands"""
             pass
 
-        @nav.command()
+        @launch.command()
+        def list():
+            """List available launch types and their status"""
+            result = self.dispatcher.execute("launch.list", {})
+            self._handle_result(result)
+
+        @launch.command()
+        @click.argument('launch_type')
         @click.option('--sim-time', is_flag=True, help='Use simulation time')
-        def start(sim_time):
-            """Start the navigation stack"""
-            result = self.dispatcher.execute("nav.start", {"use_sim_time": sim_time})
+        def start(launch_type, sim_time):
+            """Start a specific launch file type (nav, slam, map_server)"""
+            params = {"launch_type": launch_type}
+            if sim_time:
+                params["use_sim_time"] = sim_time
+            result = self.dispatcher.execute("launch.start", params)
             self._handle_result(result)
 
-        @nav.command()
-        def stop():
-            """Stop the navigation stack"""
-            result = self.dispatcher.execute("nav.stop", {})
+        @launch.command()
+        @click.argument('launch_type')
+        def kill(launch_type):
+            """Stop a specific launch file type"""
+            result = self.dispatcher.execute("launch.kill", {"launch_type": launch_type})
             self._handle_result(result)
 
-        # SLAM commands
-        @cli.group()
-        def slam():
-            """SLAM commands"""
-            pass
-
-        @slam.command()
-        @click.option('--sim-time', is_flag=True, help='Use simulation time')
-        def start(sim_time):
-            """Start SLAM"""
-            result = self.dispatcher.execute("slam.start", {"use_sim_time": sim_time})
-            self._handle_result(result)
-
-        @slam.command()
-        def stop():
-            """Stop SLAM"""
-            result = self.dispatcher.execute("slam.stop", {})
+        @launch.command()
+        @click.argument('launch_type', required=False)
+        def status(launch_type):
+            """Show status of launch processes"""
+            params = {}
+            if launch_type:
+                params["launch_type"] = launch_type
+            result = self.dispatcher.execute("launch.status", params)
             self._handle_result(result)
 
         # Map commands
@@ -191,17 +193,6 @@ class ClickCLI:
             result = self.dispatcher.execute("map.load", {"filename": filename})
             self._handle_result(result)
 
-        @map.command()
-        def stop_save():
-            """Stop map save operation"""
-            result = self.dispatcher.execute("map.stop_save", {})
-            self._handle_result(result)
-
-        @map.command()
-        def stop_load():
-            """Stop map load operation"""
-            result = self.dispatcher.execute("map.stop_load", {})
-            self._handle_result(result)
 
         # Configuration commands
         @cli.group()

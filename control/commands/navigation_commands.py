@@ -29,16 +29,4 @@ def build_navigation_commands() -> Dict[str, CommandDef]:
             description="Load a map from maps/ folder",
             group="map"
         ),
-        "map.stop_save": CommandDef(
-            method_name="stop_map_save",
-            parameters=[],
-            description="Stop map save operation",
-            group="map"
-        ),
-        "map.stop_load": CommandDef(
-            method_name="stop_map_load",
-            parameters=[],
-            description="Stop map load operation",
-            group="map"
-        )
     }

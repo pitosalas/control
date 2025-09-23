@@ -5,10 +5,13 @@ import uuid
 import os
 import signal
 import time
+import rclpy
 from typing import Dict, Optional, List
 from dataclasses import dataclass
+from pathlib import Path
 from .base_api import BaseApi
 from ..commands.config_manager import ConfigManager
+from nav2_msgs.srv import LoadMap, SaveMap
 
 @dataclass
 class ProcessInfo:
@@ -42,9 +45,9 @@ LAUNCH_CONFIGS = {
     ),
     "map_server": LaunchConfig(
         launch_type="map_server",
-        command_template="ros2 run nav2_map_server map_server {params}",
-        description="Map server for loading and saving maps",
-        default_params={}
+        command_template="ros2 launch nav2_map_server map_server.launch.py {params}",
+        description="Map server and map saver for loading and saving maps",
+        default_params={"use_sim_time": "false"}
     )
 }
 
@@ -57,6 +60,10 @@ class ProcessApi(BaseApi):
     def __init__(self, config_manager: ConfigManager = None):
         super().__init__('process_api', config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
+
+        # Service clients for map operations
+        self.load_map_client = self.create_client(LoadMap, '/map_server/load_map')
+        self.save_map_client = self.create_client(SaveMap, '/map_saver/save_map')
 
     def get_available_launch_types(self) -> List[str]:
         """Get list of available launch types"""
@@ -89,7 +96,7 @@ class ProcessApi(BaseApi):
         params_str = self._format_launch_params(final_params)
         command = config.command_template.format(params=params_str).strip()
 
-        self.log_info(f"Launching {launch_type}: {command}")
+        self.log_debug(f"Launching {launch_type}: {command}")
         return self.launch_command(command)
 
     def kill_by_type(self, launch_type: str, tracked_process_id: str) -> bool:
@@ -114,7 +121,7 @@ class ProcessApi(BaseApi):
         """Launch shell command and return process ID"""
         process_id = str(uuid.uuid4())
 
-        self.log_info(f"Launching: {command}")
+        self.log_debug(f"Launching: {command}")
 
         try:
             proc = subprocess.Popen(
@@ -144,12 +151,77 @@ class ProcessApi(BaseApi):
             ).start()
 
             self.processes[process_id] = process_info
-            self.log_info(f"Process launched with ID: {process_id}, PID: {proc.pid}")
+            self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}")
             return process_id
 
         except Exception as e:
             self.log_error(f"Failed to launch command '{command}': {e}")
             raise
+
+    def save_map_via_service(self, filename: str) -> bool:
+        """Save current map using ROS2 service call to persistent map_saver"""
+        if not self.save_map_client.wait_for_service(timeout_sec=2.0):
+            self.log_error("Map saver service not available")
+            return False
+
+        maps_dir = Path("maps")
+        maps_dir.mkdir(exist_ok=True)
+        map_path = maps_dir / filename
+
+        request = SaveMap.Request()
+        request.map_topic = "map"
+        request.map_url = str(map_path)
+        request.image_format = "pgm"
+        request.map_mode = "trinary"
+        request.free_thresh = 0.25
+        request.occupied_thresh = 0.65
+
+        try:
+            future = self.save_map_client.call_async(request)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
+
+            if future.result() is not None:
+                result = future.result()
+                if result.result:
+                    self.log_debug(f"Map saved successfully to {map_path}")
+                    return True
+                else:
+                    self.log_error(f"Failed to save map: {result.result}")
+                    return False
+            else:
+                self.log_error("Map save service call failed")
+                return False
+        except Exception as e:
+            self.log_error(f"Error calling map save service: {e}")
+            return False
+
+    def load_map_via_service(self, map_file: str) -> bool:
+        """Load a map using ROS2 service call to persistent map_server"""
+        if not self.load_map_client.wait_for_service(timeout_sec=2.0):
+            self.log_error("Map server load service not available")
+            return False
+
+        request = LoadMap.Request()
+        request.map_url = map_file
+
+        try:
+            future = self.load_map_client.call_async(request)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
+
+            if future.result() is not None:
+                result = future.result()
+                if result.result == LoadMap.Response.RESULT_SUCCESS:
+                    self.log_debug(f"Map loaded successfully from {map_file}")
+                    return True
+                else:
+                    self.log_error(f"Failed to load map: result code {result.result}")
+                    return False
+            else:
+                self.log_error("Map load service call failed")
+                return False
+        except Exception as e:
+            self.log_error(f"Error calling map load service: {e}")
+            return False
 
     def save_map(self, filename: str) -> str:
         """Save current map using map_saver_cli"""
@@ -213,11 +285,11 @@ class ProcessApi(BaseApi):
 
         proc_info = self.processes[process_id]
         if not proc_info.is_running:
-            self.log_info(f"Process {process_id} already stopped")
+            self.log_debug(f"Process {process_id} already stopped")
             return True
 
         try:
-            self.log_info(f"Terminating process {process_id}: {proc_info.command}")
+            self.log_debug(f"Terminating process {process_id}: {proc_info.command}")
 
             # Kill process group (handles launch files with multiple nodes)
             try:
@@ -230,7 +302,7 @@ class ProcessApi(BaseApi):
             # Wait for graceful shutdown
             try:
                 proc_info.process.wait(timeout=5)
-                self.log_info(f"Process {process_id} terminated gracefully")
+                self.log_debug(f"Process {process_id} terminated gracefully")
             except subprocess.TimeoutExpired:
                 self.log_warn(f"Force killing process {process_id}")
                 try:
@@ -334,7 +406,7 @@ class ProcessApi(BaseApi):
             self.log_error(f"Error capturing output for process {process_id}: {e}")
         finally:
             process_info.is_running = False
-            self.log_info(f"Process {process_id} finished")
+            self.log_debug(f"Process {process_id} finished")
 
     def cleanup_finished_processes(self):
         """Remove finished processes from tracking"""
@@ -350,7 +422,7 @@ class ProcessApi(BaseApi):
 
         for process_id in finished:
             del self.processes[process_id]
-            self.log_info(f"Cleaned up finished process {process_id}")
+            self.log_debug(f"Cleaned up finished process {process_id}")
 
     def destroy_node(self):
         """Clean up all processes and shutdown"""

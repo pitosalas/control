@@ -20,6 +20,9 @@ class BaseApi(Node, ABC):
     def get_topics(self):
         return self.get_topic_names_and_types()
 
+    def log_debug(self, message: str):
+        self.get_logger().debug(message)
+
     def log_info(self, message: str):
         self.get_logger().info(message)
 

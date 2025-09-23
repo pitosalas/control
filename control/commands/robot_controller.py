@@ -76,17 +76,20 @@ class RobotController:
 
     def launch_list(self) -> CommandResponse:
         """List all available launch types with descriptions"""
-        launch_types = []
+        launch_info = []
         for launch_type in self.process.get_available_launch_types():
             config = self.process.get_launch_config(launch_type)
             is_running = self._is_launch_running(launch_type)
-            launch_types.append({
-                "type": launch_type,
-                "description": config.description,
-                "running": is_running
-            })
+            status = "RUNNING" if is_running else "STOPPED"
+            launch_info.append(f"{launch_type:<12} {status:<8} {config.description}")
 
-        return CommandResponse(True, "Available launch types", {"launch_types": launch_types})
+        if launch_info:
+            header = f"{'TYPE':<12} {'STATUS':<8} DESCRIPTION"
+            separator = "-" * 50
+            formatted_output = f"{header}\n{separator}\n" + "\n".join(launch_info)
+            return CommandResponse(True, formatted_output)
+        else:
+            return CommandResponse(True, "No launch types available")
 
     def launch_start(self, launch_type: str, **kwargs) -> CommandResponse:
         """Start a launch process by type"""
@@ -212,19 +215,16 @@ class RobotController:
         return self._start_launch("nav", use_sim_time=use_sim_time, **kwargs)
 
     def save_current_map(self, filename: str) -> CommandResponse:
-        # Create maps directory if it doesn't exist
-        from pathlib import Path
-        maps_dir = Path("maps")
-        maps_dir.mkdir(exist_ok=True)
+        # Check if map_server is running
+        if not self.launch_process_ids.get("map_server"):
+            return CommandResponse(False, "Map server is not running. Start it with: launch start map_server")
 
-        # Create full path for the map file
-        map_path = maps_dir / filename
-
-        return self._start_process(
-            "map_save",
-            "map save",
-            lambda: self.process.save_map(str(map_path))
-        )
+        # Use service call to save map
+        success = self.process.save_map_via_service(filename)
+        if success:
+            return CommandResponse(True, f"Map saved to maps/{filename}")
+        else:
+            return CommandResponse(False, "Failed to save map via service call")
 
     def list_maps(self) -> CommandResponse:
         from pathlib import Path
@@ -253,11 +253,16 @@ class RobotController:
         if not map_path.exists():
             return CommandResponse(False, f"Map '{filename}' not found in maps/ folder")
 
-        return self._start_process(
-            "map_load",
-            "map load",
-            lambda: self.process.load_map(str(map_path))
-        )
+        # Check if map_server is running
+        if not self.launch_process_ids.get("map_server"):
+            return CommandResponse(False, "Map server is not running. Start it with: launch start map_server")
+
+        # Use service call to load map
+        success = self.process.load_map_via_service(str(map_path))
+        if success:
+            return CommandResponse(True, f"Map loaded from maps/{filename}.yaml")
+        else:
+            return CommandResponse(False, "Failed to load map via service call")
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
         return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)
@@ -292,11 +297,6 @@ class RobotController:
     def stop_slam(self) -> CommandResponse:
         return self._stop_launch("slam")
 
-    def stop_map_save(self) -> CommandResponse:
-        return self._stop_process("map_save", "map save")
-
-    def stop_map_load(self) -> CommandResponse:
-        return self._stop_process("map_load", "map load")
 
     def get_active_processes(self) -> CommandResponse:
         processes = self.process.get_running_processes()
