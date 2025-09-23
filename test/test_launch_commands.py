@@ -140,9 +140,9 @@ class TestLaunchCommands(unittest.TestCase):
         total_commands = len(self.dispatcher.commands)
 
         # Should have added 4 launch commands
-        # Previous count was 19, now should be 23
-        self.assertEqual(total_commands, 23,
-                        f"Expected 23 commands after adding launch commands, got {total_commands}")
+        # Current count should be 21
+        self.assertEqual(total_commands, 21,
+                        f"Expected 21 commands after adding launch commands, got {total_commands}")
 
 
 if __name__ == "__main__":

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+from abc import ABC
+
 import rclpy
 from rclpy.node import Node
-from abc import ABC
+
 from ..commands.config_manager import ConfigManager
 
+
 class BaseApi(Node, ABC):
-    """
-    Base class for all ROS2 API nodes providing shared functionality.
+    """Base class for all ROS2 API nodes providing shared functionality.
     Handles ROS2 initialization, config management, and common utilities.
     """
 
@@ -32,9 +34,13 @@ class BaseApi(Node, ABC):
     def log_error(self, message: str):
         self.get_logger().error(message)
 
-    def check_bounds(self, value: float, min_val: float, max_val: float, name: str) -> bool:
+    def check_bounds(
+        self, value: float, min_val: float, max_val: float, name: str
+    ) -> bool:
         if not (min_val <= value <= max_val):
-            self.log_warn(f"{name} out of bounds: {value}. Must be [{min_val}, {max_val}]")
+            self.log_warn(
+                f"{name} out of bounds: {value}. Must be [{min_val}, {max_val}]"
+            )
             return False
         return True
 

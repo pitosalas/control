@@ -29,7 +29,7 @@ class TestCommandDispatcher:
 
         assert len(commands) > 0
         assert "move.distance" in commands
-        assert "nav.start" in commands
+        assert "launch.start" in commands
 
     def test_execute_simple_command(self, dispatcher, mock_robot_controller):
         """Test executing a command with parameters."""
@@ -40,12 +40,12 @@ class TestCommandDispatcher:
 
     def test_execute_command_with_optional_params(self, dispatcher, mock_robot_controller):
         """Test executing command with optional parameters."""
-        mock_robot_controller.start_navigation_stack.return_value = CommandResponse(True, "Nav started")
+        mock_robot_controller.launch_start.return_value = CommandResponse(True, "Nav started")
 
-        result = dispatcher.execute("nav.start", {})
+        result = dispatcher.execute("launch.start", {"launch_type": "nav"})
 
         assert result.success is True
-        mock_robot_controller.start_navigation_stack.assert_called_once_with(use_sim_time=False)
+        mock_robot_controller.launch_start.assert_called_once_with(launch_type="nav", use_sim_time=False)
 
     def test_missing_required_parameter(self, dispatcher):
         """Test error handling for missing required parameters."""
@@ -70,12 +70,12 @@ class TestCommandDispatcher:
 
     def test_boolean_parameter_conversion(self, dispatcher, mock_robot_controller):
         """Test boolean parameter conversion from strings."""
-        mock_robot_controller.start_navigation_stack.return_value = CommandResponse(True, "Nav started")
+        mock_robot_controller.launch_start.return_value = CommandResponse(True, "Nav started")
 
-        result = dispatcher.execute("nav.start", {"use_sim_time": "true"})
+        result = dispatcher.execute("launch.start", {"launch_type": "nav", "use_sim_time": "true"})
 
         assert result.success is True
-        mock_robot_controller.start_navigation_stack.assert_called_once_with(use_sim_time=True)
+        mock_robot_controller.launch_start.assert_called_once_with(launch_type="nav", use_sim_time=True)
 
     def test_list_commands_by_group(self, dispatcher):
         """Test listing commands filtered by group."""
@@ -100,7 +100,7 @@ class TestCommandDispatcher:
         groups = dispatcher.get_groups()
 
         assert "movement" in groups
-        assert "navigation" in groups
+        assert "launch" in groups
         assert "control" in groups
 
     def test_get_help_for_specific_command(self, dispatcher):

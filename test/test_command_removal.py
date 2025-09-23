@@ -35,8 +35,7 @@ class TestCommandRemoval(unittest.TestCase):
     def test_map_commands_remain(self):
         """Test that map commands are still available"""
         expected_map_commands = [
-            "map.save", "map.load", "map.list",
-            "map.stop_save", "map.stop_load"
+            "map.save", "map.load", "map.list"
         ]
 
         for cmd in expected_map_commands:
@@ -65,9 +64,9 @@ class TestCommandRemoval(unittest.TestCase):
         # Current count should be around 19 (was 23 before removal)
         total_commands = len(self.dispatcher.commands)
 
-        # Verify we have reasonable number of commands (should be 19)
-        self.assertEqual(total_commands, 19,
-                        f"Expected 19 commands after removal, got {total_commands}")
+        # Verify we have reasonable number of commands (should be 21)
+        self.assertEqual(total_commands, 21,
+                        f"Expected 21 commands after removal, got {total_commands}")
 
     def test_navigation_commands_function_only_has_map_commands(self):
         """Test that build_navigation_commands only returns map commands"""

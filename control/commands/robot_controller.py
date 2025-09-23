@@ -211,8 +211,6 @@ class RobotController:
         status = self.movement.get_status()
         return CommandResponse(True, "Robot status", {"status": status})
 
-    def start_navigation_stack(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
-        return self._start_launch("nav", use_sim_time=use_sim_time, **kwargs)
 
     def save_current_map(self, filename: str) -> CommandResponse:
         # Check if map_server is running
@@ -291,11 +289,6 @@ class RobotController:
             return CommandResponse(True, f"Killed process {process_id}")
         return CommandResponse(False, f"Failed to kill process {process_id}")
 
-    def kill_navigation_stack(self) -> CommandResponse:
-        return self._stop_launch("nav")
-
-    def stop_slam(self) -> CommandResponse:
-        return self._stop_launch("slam")
 
 
     def get_active_processes(self) -> CommandResponse:

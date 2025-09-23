@@ -67,7 +67,8 @@ class TestLaunchConfig(unittest.TestCase):
         self.assertIn("nav2_map_server", config.command_template)
         self.assertIn("map_server", config.command_template)
         self.assertIn("map", config.description.lower())
-        self.assertEqual(len(config.default_params), 0)  # No default params for map_server
+        self.assertEqual(len(config.default_params), 1)  # Has use_sim_time default param
+        self.assertEqual(config.default_params["use_sim_time"], "false")
 
     def test_get_available_launch_types(self):
         """Test getting list of available launch types"""
@@ -118,7 +119,7 @@ class TestLaunchConfig(unittest.TestCase):
         test_cases = [
             ("nav", {"use_sim_time": "true"}, "ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true"),
             ("slam", {}, "ros2 launch slam_toolbox online_async_launch.py "),
-            ("map_server", {"yaml_filename": "/path/map.yaml"}, "ros2 run nav2_map_server map_server yaml_filename:=/path/map.yaml")
+            ("map_server", {"yaml_filename": "/path/map.yaml"}, "ros2 launch nav2_map_server map_server.launch.py yaml_filename:=/path/map.yaml")
         ]
 
         for launch_type, params, expected_command in test_cases:

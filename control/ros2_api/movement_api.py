@@ -1,30 +1,38 @@
 #!/usr/bin/env python3
+import math
+import time
+
+import rclpy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-import time
-import math
-from .base_api import BaseApi
+
 from ..commands.config_manager import ConfigManager
+from .base_api import BaseApi
+
 
 class MovementApi(BaseApi):
-    """
-    ROS2 movement API for robot velocity control and odometry.
+    """ROS2 movement API for robot velocity control and odometry.
     Provides safe velocity commands with automatic stopping.
     """
 
     def __init__(self, config_manager: ConfigManager = None):
-        super().__init__('movement_api', config_manager)
+        super().__init__("movement_api", config_manager)
 
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 1)
-        self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, "/cmd_vel", 1)
+        self.odom_sub = self.create_subscription(
+            Odometry,
+            "/odom",
+            self.odom_callback,
+            10,
+        )
 
         self.linear_min = -0.5
         self.linear_max = 0.5
         self.angular_min = -1.0
         self.angular_max = 1.0
 
-        self.linear = self.config.get_variable('linear_speed')
-        self.angular = self.config.get_variable('angular_speed')
+        self.linear = self.config.get_variable("linear_speed")
+        self.angular = self.config.get_variable("angular_speed")
         self.current_pose = None
 
     def move_dist(self, distance: float):
@@ -87,10 +95,10 @@ class MovementApi(BaseApi):
     def get_status(self):
         """Return current speed settings and limits."""
         return {
-            'linear': self.linear,
-            'angular': self.angular,
-            'linear_limits': [self.linear_min, self.linear_max],
-            'angular_limits': [self.angular_min, self.angular_max]
+            "linear": self.linear,
+            "angular": self.angular,
+            "linear_limits": [self.linear_min, self.linear_max],
+            "angular_limits": [self.angular_min, self.angular_max],
         }
 
     def get_current_position(self):
@@ -101,8 +109,18 @@ class MovementApi(BaseApi):
 
     def check_velocity_limits(self, linear: float, angular: float) -> bool:
         """Check if speeds are within safe limits."""
-        linear_ok = self.check_bounds(linear, self.linear_min, self.linear_max, "linear velocity")
-        angular_ok = self.check_bounds(angular, self.angular_min, self.angular_max, "angular velocity")
+        linear_ok = self.check_bounds(
+            linear,
+            self.linear_min,
+            self.linear_max,
+            "linear velocity",
+        )
+        angular_ok = self.check_bounds(
+            angular,
+            self.angular_min,
+            self.angular_max,
+            "angular velocity",
+        )
         return linear_ok and angular_ok
 
     def cmd_vel_helper(self, linear: float, angular: float, seconds: float):
@@ -117,8 +135,6 @@ class MovementApi(BaseApi):
         start_time = time.time()
         rate_hz = 10
         sleep_duration = 1.0 / rate_hz
-
-        import rclpy
         while rclpy.ok() and (time.time() - start_time) < seconds:
             self.cmd_vel_pub.publish(twist)
             rclpy.spin_once(self, timeout_sec=sleep_duration)

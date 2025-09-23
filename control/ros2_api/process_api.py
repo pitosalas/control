@@ -223,39 +223,7 @@ class ProcessApi(BaseApi):
             self.log_error(f"Error calling map load service: {e}")
             return False
 
-    def save_map(self, filename: str) -> str:
-        """Save current map using map_saver_cli"""
-        command = f"ros2 run nav2_map_server map_saver_cli -f {filename}"
-        return self.launch_command(command)
 
-    def load_map(self, map_file: str) -> str:
-        """Load a map using nav2_map_server"""
-        command = f"ros2 run nav2_map_server map_server --ros-args -p yaml_filename:={map_file}"
-        return self.launch_command(command)
-
-    def start_navigation(self, use_sim_time: bool = False, **kwargs) -> str:
-        """Start navigation stack with optional parameters"""
-        params = []
-        params.append(f"use_sim_time:={str(use_sim_time).lower()}")
-
-        for key, value in kwargs.items():
-            params.append(f"{key}:={value}")
-
-        param_string = " ".join(params)
-        command = f"ros2 launch nav2_bringup navigation_launch.py {param_string}"
-        return self.launch_command(command)
-
-    def start_slam(self, use_sim_time: bool = False, **kwargs) -> str:
-        """Start SLAM toolbox"""
-        params = []
-        params.append(f"use_sim_time:={str(use_sim_time).lower()}")
-
-        for key, value in kwargs.items():
-            params.append(f"{key}:={value}")
-
-        param_string = " ".join(params)
-        command = f"ros2 launch slam_toolbox online_async_launch.py {param_string}"
-        return self.launch_command(command)
 
     def run_ros_node(self, package: str, executable: str, **kwargs) -> str:
         """Run a ROS2 node with optional parameters"""

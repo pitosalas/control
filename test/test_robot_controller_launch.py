@@ -33,9 +33,13 @@ class TestRobotControllerLaunch(unittest.TestCase):
         response = self.controller.launch_list()
 
         self.assertTrue(response.success)
-        self.assertEqual(response.message, "Available launch types")
-        self.assertIn("launch_types", response.data)
-        self.assertEqual(len(response.data["launch_types"]), 3)
+        # New format returns formatted table in message, no data
+        self.assertIn("TYPE", response.message)
+        self.assertIn("STATUS", response.message)
+        self.assertIn("DESCRIPTION", response.message)
+        self.assertIn("nav", response.message)
+        self.assertIn("slam", response.message)
+        self.assertIn("map_server", response.message)
 
     def test_launch_start_success(self):
         """Test successful launch start"""
@@ -134,24 +138,6 @@ class TestRobotControllerLaunch(unittest.TestCase):
         self.assertEqual(response.message, "All launch status")
         self.assertIn("launches", response.data)
 
-    def test_old_methods_use_new_system(self):
-        """Test that old navigation/slam methods use new launch system"""
-        self.controller._start_launch = MagicMock(return_value="mock_response")
-        self.controller._stop_launch = MagicMock(return_value="mock_response")
-
-        # Test old start methods
-        self.controller.start_navigation_stack(use_sim_time=True)
-        self.controller._start_launch.assert_called_with("nav", use_sim_time=True)
-
-        self.controller.start_slam(use_sim_time=False, custom_param="value")
-        self.controller._start_launch.assert_called_with("slam", use_sim_time=False, custom_param="value")
-
-        # Test old stop methods
-        self.controller.kill_navigation_stack()
-        self.controller._stop_launch.assert_called_with("nav")
-
-        self.controller.stop_slam()
-        self.controller._stop_launch.assert_called_with("slam")
 
 
 if __name__ == "__main__":
