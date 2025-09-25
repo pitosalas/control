@@ -243,24 +243,6 @@ class RobotController:
 
         return CommandResponse(True, f"Found {len(map_names)} maps", {"maps": map_names})
 
-    def load_map(self, filename: str) -> CommandResponse:
-        from pathlib import Path
-        maps_dir = Path("maps")
-        map_path = maps_dir / f"{filename}.yaml"
-
-        if not map_path.exists():
-            return CommandResponse(False, f"Map '{filename}' not found in maps/ folder")
-
-        # Check if map_server is running
-        if not self.launch_process_ids.get("map_server"):
-            return CommandResponse(False, "Map server is not running. Start it with: launch start map_server")
-
-        # Use service call to load map
-        success = self.process.load_map_via_service(str(map_path))
-        if success:
-            return CommandResponse(True, f"Map loaded from maps/{filename}.yaml")
-        else:
-            return CommandResponse(False, "Failed to load map via service call")
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
         return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)

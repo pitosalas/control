@@ -21,12 +21,4 @@ def build_navigation_commands() -> Dict[str, CommandDef]:
             description="List available maps in maps/ folder",
             group="map"
         ),
-        "map.load": CommandDef(
-            method_name="load_map",
-            parameters=[
-                ParameterDef("filename", str, description="Map filename (without extension)")
-            ],
-            description="Load a map from maps/ folder",
-            group="map"
-        ),
     }

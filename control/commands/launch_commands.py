@@ -18,7 +18,9 @@ def build_launch_commands() -> Dict[str, CommandDef]:
             parameters=[
                 ParameterDef("launch_type", str, description="Launch type (nav, slam, map_server)"),
                 ParameterDef("use_sim_time", bool, required=False, default=False,
-                           description="Use simulation time")
+                           description="Use simulation time"),
+                ParameterDef("map_name", str, required=False,
+                           description="Map name for map_server (without extension)")
             ],
             description="Start a launch process by type",
             group="launch"

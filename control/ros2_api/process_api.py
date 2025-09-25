@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-import subprocess
-import threading
-import uuid
 import os
 import signal
+import subprocess
+import threading
 import time
-import rclpy
-from typing import Dict, Optional, List
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from .base_api import BaseApi
+from typing import Dict, List, Optional
+
+import rclpy
+from nav2_msgs.srv import SaveMap
+
 from ..commands.config_manager import ConfigManager
-from nav2_msgs.srv import LoadMap, SaveMap
+from .base_api import BaseApi
+
 
 @dataclass
 class ProcessInfo:
@@ -22,6 +25,7 @@ class ProcessInfo:
     pid: int
     start_time: float
 
+
 @dataclass
 class LaunchConfig:
     launch_type: str
@@ -29,27 +33,29 @@ class LaunchConfig:
     description: str
     default_params: Dict[str, str]
 
+
 # Static launch configuration table
 LAUNCH_CONFIGS = {
     "nav": LaunchConfig(
         launch_type="nav",
         command_template="ros2 launch nav2_bringup navigation_launch.py {params}",
         description="Navigation stack with path planning and obstacle avoidance",
-        default_params={"use_sim_time": "false"}
+        default_params={"use_sim_time": "false"},
     ),
     "slam": LaunchConfig(
         launch_type="slam",
         command_template="ros2 launch slam_toolbox online_async_launch.py {params}",
         description="SLAM mapping and localization",
-        default_params={"use_sim_time": "false"}
+        default_params={"use_sim_time": "false"},
     ),
     "map_server": LaunchConfig(
         launch_type="map_server",
-        command_template="ros2 launch nav2_map_server map_server.launch.py {params}",
+        command_template="ros2 run nav2_map_server map_server --ros-args -p yaml_filename:={map_file} {params}",
         description="Map server and map saver for loading and saving maps",
-        default_params={"use_sim_time": "false"}
-    )
+        default_params={"use_sim_time": "false"},
+    ),
 }
+
 
 class ProcessApi(BaseApi):
     """
@@ -58,12 +64,11 @@ class ProcessApi(BaseApi):
     """
 
     def __init__(self, config_manager: ConfigManager = None):
-        super().__init__('process_api', config_manager)
+        super().__init__("process_api", config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
 
-        # Service clients for map operations
-        self.load_map_client = self.create_client(LoadMap, '/map_server/load_map')
-        self.save_map_client = self.create_client(SaveMap, '/map_saver/save_map')
+        # Service client for map save operation
+        self.save_map_client = self.create_client(SaveMap, "/map_saver/save_map")
 
     def get_available_launch_types(self) -> List[str]:
         """Get list of available launch types"""
@@ -88,13 +93,24 @@ class ProcessApi(BaseApi):
         if not config:
             raise ValueError(f"Unknown launch type: {launch_type}")
 
+        # Handle map_server special case with map_name parameter
+        if launch_type == "map_server" and "map_name" in params:
+            map_name = params.pop("map_name")  # Remove from params to avoid duplication
+            from pathlib import Path
+            map_file = Path("maps") / f"{map_name}.yaml"
+            if not map_file.exists():
+                raise ValueError(f"Map file not found: {map_file}")
+            map_file_abs = map_file.absolute()
+        else:
+            map_file_abs = ""
+
         # Merge default params with provided params
         final_params = config.default_params.copy()
         final_params.update({k: str(v) for k, v in params.items()})
 
         # Format parameters and build command
         params_str = self._format_launch_params(final_params)
-        command = config.command_template.format(params=params_str).strip()
+        command = config.command_template.format(params=params_str, map_file=map_file_abs).strip()
 
         self.log_debug(f"Launching {launch_type}: {command}")
         return self.launch_command(command)
@@ -131,7 +147,7 @@ class ProcessApi(BaseApi):
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                preexec_fn=os.setpgrp  # Create process group for clean killing
+                preexec_fn=os.setpgrp,  # Create process group for clean killing
             )
 
             process_info = ProcessInfo(
@@ -140,14 +156,14 @@ class ProcessApi(BaseApi):
                 output=[],
                 is_running=True,
                 pid=proc.pid,
-                start_time=time.time()
+                start_time=time.time(),
             )
 
             # Start output capture thread
             threading.Thread(
                 target=self._capture_output,
                 args=(process_id, process_info),
-                daemon=True
+                daemon=True,
             ).start()
 
             self.processes[process_id] = process_info
@@ -194,35 +210,6 @@ class ProcessApi(BaseApi):
         except Exception as e:
             self.log_error(f"Error calling map save service: {e}")
             return False
-
-    def load_map_via_service(self, map_file: str) -> bool:
-        """Load a map using ROS2 service call to persistent map_server"""
-        if not self.load_map_client.wait_for_service(timeout_sec=2.0):
-            self.log_error("Map server load service not available")
-            return False
-
-        request = LoadMap.Request()
-        request.map_url = map_file
-
-        try:
-            future = self.load_map_client.call_async(request)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
-
-            if future.result() is not None:
-                result = future.result()
-                if result.result == LoadMap.Response.RESULT_SUCCESS:
-                    self.log_debug(f"Map loaded successfully from {map_file}")
-                    return True
-                else:
-                    self.log_error(f"Failed to load map: result code {result.result}")
-                    return False
-            else:
-                self.log_error("Map load service call failed")
-                return False
-        except Exception as e:
-            self.log_error(f"Error calling map load service: {e}")
-            return False
-
 
 
     def run_ros_node(self, package: str, executable: str, **kwargs) -> str:
@@ -294,7 +281,9 @@ class ProcessApi(BaseApi):
                 killed_count += 1
         return killed_count
 
-    def get_process_output(self, process_id: str, lines: Optional[int] = None) -> List[str]:
+    def get_process_output(
+        self, process_id: str, lines: Optional[int] = None
+    ) -> List[str]:
         """Get captured output from process"""
         if process_id not in self.processes:
             return []
@@ -318,12 +307,12 @@ class ProcessApi(BaseApi):
                     proc_info.is_running = False
 
             result[process_id] = {
-                'command': proc_info.command,
-                'pid': proc_info.pid,
-                'is_running': proc_info.is_running,
-                'start_time': proc_info.start_time,
-                'runtime': time.time() - proc_info.start_time,
-                'output_lines': len(proc_info.output)
+                "command": proc_info.command,
+                "pid": proc_info.pid,
+                "is_running": proc_info.is_running,
+                "start_time": proc_info.start_time,
+                "runtime": time.time() - proc_info.start_time,
+                "output_lines": len(proc_info.output),
             }
         return result
 
@@ -348,7 +337,9 @@ class ProcessApi(BaseApi):
 
         return True
 
-    def wait_for_process(self, process_id: str, timeout: Optional[float] = None) -> bool:
+    def wait_for_process(
+        self, process_id: str, timeout: Optional[float] = None
+    ) -> bool:
         """Wait for process to complete"""
         if process_id not in self.processes:
             return False
@@ -364,7 +355,7 @@ class ProcessApi(BaseApi):
     def _capture_output(self, process_id: str, process_info: ProcessInfo):
         """Capture output in background thread"""
         try:
-            for line in iter(process_info.process.stdout.readline, ''):
+            for line in iter(process_info.process.stdout.readline, ""):
                 if line:
                     process_info.output.append(line.strip())
                 # Check if process has ended
