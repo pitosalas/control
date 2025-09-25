@@ -142,11 +142,14 @@ class ClickCLI:
         @launch.command()
         @click.argument('launch_type')
         @click.option('--sim-time', is_flag=True, help='Use simulation time')
-        def start(launch_type, sim_time):
+        @click.option('--map-name', help='Map name for map_server (without extension)')
+        def start(launch_type, sim_time, map_name):
             """Start a specific launch file type (nav, slam, map_server)"""
             params = {"launch_type": launch_type}
             if sim_time:
                 params["use_sim_time"] = sim_time
+            if map_name:
+                params["map_name"] = map_name
             result = self.dispatcher.execute("launch.start", params)
             self._handle_result(result)
 
@@ -186,12 +189,6 @@ class ClickCLI:
             result = self.dispatcher.execute("map.list", {})
             self._handle_result(result)
 
-        @map.command()
-        @click.argument('filename')
-        def load(filename):
-            """Load a map from maps/ folder"""
-            result = self.dispatcher.execute("map.load", {"filename": filename})
-            self._handle_result(result)
 
 
         # Configuration commands
