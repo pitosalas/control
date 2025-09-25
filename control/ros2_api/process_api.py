@@ -48,9 +48,9 @@ LAUNCH_CONFIGS = {
         description="SLAM mapping and localization",
         default_params={"use_sim_time": "false"},
     ),
-    "map_server": LaunchConfig(
-        launch_type="map_server",
-        command_template="ros2 run nav2_map_server map_server --ros-args -p yaml_filename:={map_file} {params}",
+    "map": LaunchConfig(
+        launch_type="map",
+        command_template="ros2 run nav2_map_server map_server {map_args} {params}",
         description="Map server and map saver for loading and saving maps",
         default_params={"use_sim_time": "false"},
     ),
@@ -93,16 +93,17 @@ class ProcessApi(BaseApi):
         if not config:
             raise ValueError(f"Unknown launch type: {launch_type}")
 
-        # Handle map_server special case with map_name parameter
-        if launch_type == "map_server" and "map_name" in params:
+        # Handle map special case with map_name parameter
+        if launch_type == "map" and "map_name" in params:
             map_name = params.pop("map_name")  # Remove from params to avoid duplication
             from pathlib import Path
             map_file = Path("maps") / f"{map_name}.yaml"
             if not map_file.exists():
                 raise ValueError(f"Map file not found: {map_file}")
             map_file_abs = map_file.absolute()
+            map_args = f"--ros-args -p yaml_filename:={map_file_abs}"
         else:
-            map_file_abs = ""
+            map_args = ""
 
         # Merge default params with provided params
         final_params = config.default_params.copy()
@@ -110,7 +111,16 @@ class ProcessApi(BaseApi):
 
         # Format parameters and build command
         params_str = self._format_launch_params(final_params)
-        command = config.command_template.format(params=params_str, map_file=map_file_abs).strip()
+
+        # Special handling for map type which uses ros2 run instead of ros2 launch
+        if launch_type == "map" and params_str:
+            params_str = "--ros-args " + " ".join([f"-p {param}" for param in params_str.split()])
+
+        # Format command based on launch type
+        if launch_type == "map":
+            command = config.command_template.format(params=params_str, map_args=map_args).strip()
+        else:
+            command = config.command_template.format(params=params_str).strip()
 
         self.log_debug(f"Launching {launch_type}: {command}")
         return self.launch_command(command)
@@ -303,7 +313,7 @@ class ProcessApi(BaseApi):
                     proc_info.process.poll()
                     if proc_info.process.returncode is not None:
                         proc_info.is_running = False
-                except:
+                except (OSError, AttributeError):
                     proc_info.is_running = False
 
             result[process_id] = {
@@ -331,7 +341,7 @@ class ProcessApi(BaseApi):
             if proc_info.process.returncode is not None:
                 proc_info.is_running = False
                 return False
-        except:
+        except (OSError, AttributeError):
             proc_info.is_running = False
             return False
 
@@ -376,7 +386,7 @@ class ProcessApi(BaseApi):
                     proc_info.process.poll()
                     if proc_info.process.returncode is not None:
                         finished.append(process_id)
-                except:
+                except (OSError, AttributeError):
                     finished.append(process_id)
 
         for process_id in finished:

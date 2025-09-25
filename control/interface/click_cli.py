@@ -142,9 +142,9 @@ class ClickCLI:
         @launch.command()
         @click.argument('launch_type')
         @click.option('--sim-time', is_flag=True, help='Use simulation time')
-        @click.option('--map-name', help='Map name for map_server (without extension)')
+        @click.option('--map-name', help='Map name for map launch type (without extension)')
         def start(launch_type, sim_time, map_name):
-            """Start a specific launch file type (nav, slam, map_server)"""
+            """Start a specific launch file type (nav, slam, map)"""
             params = {"launch_type": launch_type}
             if sim_time:
                 params["use_sim_time"] = sim_time
@@ -168,6 +168,19 @@ class ClickCLI:
             if launch_type:
                 params["launch_type"] = launch_type
             result = self.dispatcher.execute("launch.status", params)
+            self._handle_result(result)
+
+        @launch.command()
+        def doctor():
+            """Diagnose launch process conflicts and suggest fixes"""
+            result = self.dispatcher.execute("launch.doctor", {})
+            self._handle_result(result)
+
+        @launch.command(name='kill-all')
+        @click.argument('launch_type')
+        def kill_all(launch_type):
+            """Kill ALL instances of a launch type (tracked + external)"""
+            result = self.dispatcher.execute("launch.kill-all", {"launch_type": launch_type})
             self._handle_result(result)
 
         # Map commands

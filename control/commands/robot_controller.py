@@ -28,7 +28,7 @@ class RobotController:
         self.launch_process_ids = {
             "nav": None,
             "slam": None,
-            "map_server": None
+            "map": None
         }
 
     def _is_launch_running(self, launch_type: str) -> bool:
@@ -102,34 +102,267 @@ class RobotController:
     def launch_status(self, launch_type: str = None) -> CommandResponse:
         """Get status of launch processes"""
         if launch_type:
-            # Status for specific launch type
+            # Status for specific launch type - format as single row table
             process_id = self.launch_process_ids.get(launch_type)
             if not process_id:
-                return CommandResponse(True, f"{launch_type} status", {
-                    "launch_type": launch_type,
-                    "running": False,
-                    "process_id": None,
-                    "pid": None
-                })
+                status = "STOPPED"
+                pid = "N/A"
+                proc_id = "N/A"
+            else:
+                is_running = self.process.is_process_running(process_id)
+                if not is_running:
+                    self.launch_process_ids[launch_type] = None
+                    status = "STOPPED"
+                    pid = "N/A"
+                    proc_id = "N/A"
+                else:
+                    status = "RUNNING"
+                    process_info = self.process.processes.get(process_id)
+                    pid = str(process_info.pid) if process_info else "Unknown"
+                    proc_id = process_id[:8]
 
-            is_running = self.process.is_process_running(process_id)
-            if not is_running:
-                self.launch_process_ids[launch_type] = None
+            header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
+            separator = "-" * 40
+            row = f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}"
+            formatted_output = f"{header}\n{separator}\n{row}"
 
-            process_info = self.process.processes.get(process_id)
-            pid = process_info.pid if process_info else None
-
-            return CommandResponse(True, f"{launch_type} status", {
-                "launch_type": launch_type,
-                "running": is_running,
-                "process_id": process_id if is_running else None,
-                "pid": pid if is_running else None
-            })
+            return CommandResponse(True, formatted_output)
         else:
-            # Status for all launch types
-            return CommandResponse(True, "All launch status", {
-                "launches": self._get_launch_status()
-            })
+            # Status for all launch types - format as table
+            status_data = self._get_launch_status()
+            if not status_data:
+                return CommandResponse(True, "No launch processes tracked")
+
+            header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
+            separator = "-" * 40
+            rows = []
+
+            for launch_type, info in status_data.items():
+                status = "RUNNING" if info["running"] else "STOPPED"
+                pid = str(info["pid"]) if info["pid"] else "N/A"
+                proc_id = info["process_id"][:8] if info["process_id"] else "N/A"
+                rows.append(f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}")
+
+            formatted_output = f"{header}\n{separator}\n" + "\n".join(rows)
+            return CommandResponse(True, formatted_output)
+
+    def launch_doctor(self) -> CommandResponse:
+        """Diagnose launch process conflicts and suggest fixes"""
+        import subprocess
+        import re
+
+        issues = []
+        suggestions = []
+
+        # Get our tracked processes
+        tracked_status = self._get_launch_status()
+
+        # Detect external processes for each launch type
+        launch_types = {
+            "nav": ["navigation_launch", "nav2_bringup"],
+            "slam": ["slam_toolbox", "online_async_launch"],
+            "map": ["nav2_map_server", "map_server"]
+        }
+
+        external_processes = {}
+
+        for launch_type, patterns in launch_types.items():
+            external_pids = []
+
+            for pattern in patterns:
+                try:
+                    # Find processes matching pattern
+                    result = subprocess.run(['pgrep', '-f', pattern],
+                                          capture_output=True, text=True)
+                    if result.returncode == 0:
+                        pids = [int(pid.strip()) for pid in result.stdout.split() if pid.strip()]
+
+                        # Filter out our tracked processes
+                        tracked_pid = None
+                        if tracked_status.get(launch_type, {}).get("running"):
+                            tracked_pid = tracked_status[launch_type].get("pid")
+
+                        for pid in pids:
+                            if tracked_pid != pid:
+                                external_pids.append(pid)
+                except Exception:
+                    continue
+
+            if external_pids:
+                external_processes[launch_type] = external_pids
+
+        # Check for conflicts
+        for launch_type, external_pids in external_processes.items():
+            tracked = tracked_status.get(launch_type, {})
+            is_tracked_running = tracked.get("running", False)
+
+            if external_pids:
+                if is_tracked_running:
+                    issues.append(f"Multiple {launch_type} processes detected: "
+                                f"tracked PID {tracked.get('pid')} + external PIDs {external_pids}")
+                    suggestions.append(f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes")
+                else:
+                    issues.append(f"External {launch_type} processes detected: PIDs {external_pids}")
+                    suggestions.append(f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes")
+
+        # Check for orphaned tracked processes
+        for launch_type, status in tracked_status.items():
+            if status.get("process_id") and not status.get("running"):
+                issues.append(f"Orphaned {launch_type} process tracking (process ended but still tracked)")
+                suggestions.append(f"launch status  # Check current status and clear stale tracking")
+
+        # Check for stale processes
+        try:
+            result = subprocess.run(['pgrep', '-f', 'ros2.*launch.*navigation_launch'],
+                                  capture_output=True, text=True)
+            stale_pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
+            if len(stale_pids) > 1:
+                issues.append(f"Multiple navigation launch processes: {stale_pids}")
+                suggestions.append("launch kill-all nav  # Kill ALL navigation processes")
+        except Exception:
+            pass
+
+        # Format output
+        if not issues:
+            return CommandResponse(True, "DIAGNOSIS: No launch conflicts detected. All systems appear healthy.")
+
+        diagnosis = "DIAGNOSIS:\n"
+        for issue in issues:
+            diagnosis += f"✗ {issue}\n"
+
+        if suggestions:
+            diagnosis += "\nRECOMMENDED ACTIONS:\n"
+            for i, suggestion in enumerate(suggestions, 1):
+                diagnosis += f"{i}. {suggestion}\n"
+
+        diagnosis += "\nADDITIONAL COMMANDS:\n"
+        diagnosis += "- launch status  # Check current tracking status\n"
+        diagnosis += "- launch list    # Show available launch types\n"
+        diagnosis += "- launch kill <type>  # Kill tracked process only"
+
+        return CommandResponse(True, diagnosis.strip())
+
+    def launch_kill_all(self, launch_type: str) -> CommandResponse:
+        """Kill ALL instances of a launch type (tracked + external) or everything with *"""
+        import subprocess
+
+        # Nuclear option - kill ALL ROS2 processes
+        if launch_type == "*":
+            return self._nuclear_ros_cleanup()
+
+        if launch_type not in ["nav", "slam", "map"]:
+            return CommandResponse(False, f"Unknown launch type: {launch_type}. Use: nav, slam, map, or * for everything")
+
+        # Define process patterns for each launch type
+        kill_patterns = {
+            "nav": ["navigation_launch", "nav2_bringup"],
+            "slam": ["slam_toolbox", "online_async_launch"],
+            "map": ["nav2_map_server", "map_server"]
+        }
+
+        patterns = kill_patterns[launch_type]
+        killed_pids = []
+        errors = []
+
+        # Kill our tracked process first (graceful)
+        tracked_killed = False
+        if self.launch_process_ids.get(launch_type):
+            result = self._stop_launch(launch_type)
+            if result.success:
+                tracked_killed = True
+
+        # Kill all external processes matching patterns
+        for pattern in patterns:
+            try:
+                # Find PIDs
+                result = subprocess.run(['pgrep', '-f', pattern],
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
+
+                    # Kill each PID
+                    for pid in pids:
+                        try:
+                            subprocess.run(['kill', '-TERM', pid], check=True)
+                            killed_pids.append(pid)
+                        except subprocess.CalledProcessError:
+                            # Try SIGKILL if TERM fails
+                            try:
+                                subprocess.run(['kill', '-KILL', pid], check=True)
+                                killed_pids.append(pid)
+                            except subprocess.CalledProcessError:
+                                errors.append(f"Failed to kill PID {pid}")
+
+            except Exception as e:
+                errors.append(f"Error finding {pattern} processes: {str(e)}")
+
+        # Clear our tracking
+        if launch_type in self.launch_process_ids:
+            self.launch_process_ids[launch_type] = None
+
+        # Format response
+        if killed_pids:
+            message = f"Killed {len(killed_pids)} {launch_type} processes: {killed_pids}"
+            if tracked_killed:
+                message += " (including tracked process)"
+        elif tracked_killed:
+            message = f"Killed tracked {launch_type} process"
+        else:
+            message = f"No {launch_type} processes found to kill"
+
+        if errors:
+            message += f"\nErrors: {'; '.join(errors)}"
+            return CommandResponse(False, message)
+
+        return CommandResponse(True, message)
+
+    def _nuclear_ros_cleanup(self) -> CommandResponse:
+        """Nuclear option: Kill ALL ROS2 nodes and processes"""
+        import subprocess
+
+        # Clear all our tracking first
+        for launch_type in self.launch_process_ids:
+            self.launch_process_ids[launch_type] = None
+
+        commands = [
+            ["pkill", "-f", "ros2"],
+            ["pkill", "-f", "_ros"],
+            ["pkill", "-f", "rcl"],
+            ["pkill", "-f", "launch"]
+        ]
+
+        results = []
+        total_killed = 0
+
+        for cmd in commands:
+            try:
+                # Get PIDs before killing to count them
+                pattern = cmd[2]
+                pid_result = subprocess.run(['pgrep', '-f', pattern],
+                                          capture_output=True, text=True)
+                if pid_result.returncode == 0:
+                    pid_count = len([p for p in pid_result.stdout.split() if p.strip()])
+                else:
+                    pid_count = 0
+
+                # Execute the kill command
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if pid_count > 0:
+                    results.append(f"Killed {pid_count} processes matching '{pattern}'")
+                    total_killed += pid_count
+                else:
+                    results.append(f"No processes found matching '{pattern}'")
+
+            except Exception as e:
+                results.append(f"Error with command {' '.join(cmd)}: {str(e)}")
+
+        if total_killed > 0:
+            message = f"NUCLEAR CLEANUP: Killed {total_killed} ROS processes total\n"
+            message += "\n".join(results)
+            message += "\n\nWARNING: All ROS2 processes have been terminated!"
+            return CommandResponse(True, message)
+        else:
+            return CommandResponse(True, "No ROS2 processes found to kill")
 
     def _get_launch_status(self) -> Dict[str, Dict[str, Any]]:
         """Get status of all tracked launch processes with PIDs"""
@@ -213,9 +446,9 @@ class RobotController:
 
 
     def save_current_map(self, filename: str) -> CommandResponse:
-        # Check if map_server is running
-        if not self.launch_process_ids.get("map_server"):
-            return CommandResponse(False, "Map server is not running. Start it with: launch start map_server")
+        # Check if map is running
+        if not self.launch_process_ids.get("map"):
+            return CommandResponse(False, "Map server is not running. Start it with: launch start map")
 
         # Use service call to save map
         success = self.process.save_map_via_service(filename)
