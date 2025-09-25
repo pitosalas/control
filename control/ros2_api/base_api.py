@@ -8,7 +8,8 @@ from ..commands.config_manager import ConfigManager
 
 
 class BaseApi(Node, ABC):
-    """Base class for all ROS2 API nodes providing shared functionality.
+    """
+    Base class for all ROS2 API nodes providing shared functionality.
     Handles ROS2 initialization, config management, and common utilities.
     """
 

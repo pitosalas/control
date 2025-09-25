@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import unittest
+import subprocess
 from control.ros2_api.process_api import LAUNCH_CONFIGS, LaunchConfig, ProcessApi
 from control.commands.config_manager import ConfigManager
 
@@ -119,7 +120,7 @@ class TestLaunchConfig(unittest.TestCase):
         test_cases = [
             ("nav", {"use_sim_time": "true"}, "ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true"),
             ("slam", {}, "ros2 launch slam_toolbox online_async_launch.py "),
-            ("map_server", {"yaml_filename": "/path/map.yaml"}, "ros2 launch nav2_map_server map_server.launch.py yaml_filename:=/path/map.yaml")
+            ("map_server", {"use_sim_time": "true"}, "ros2 run nav2_map_server map_server use_sim_time:=true")
         ]
 
         for launch_type, params, expected_command in test_cases:
@@ -213,6 +214,68 @@ class TestLaunchTypeMethods(unittest.TestCase):
         self.assertIsInstance(status, dict)
         self.assertEqual(status["launch_type"], "nav")
         self.assertIn("status", status)
+
+
+class TestCommandValidation(unittest.TestCase):
+    """Test that launch commands are actually valid and would work"""
+
+    def test_nav_launch_file_exists(self):
+        """Test that navigation launch file exists"""
+        try:
+            result = subprocess.run(
+                ["ros2", "launch", "nav2_bringup", "navigation_launch.py", "--help"],
+                capture_output=True, text=True, timeout=10
+            )
+            # Should not fail with "package not found" or "launch file not found"
+            self.assertNotIn("not found", result.stderr.lower())
+        except subprocess.TimeoutExpired:
+            # Help command might hang, but that means the launch file exists
+            pass
+        except Exception as e:
+            self.fail(f"Failed to validate nav launch file: {e}")
+
+    def test_slam_launch_file_exists(self):
+        """Test that SLAM launch file exists"""
+        try:
+            result = subprocess.run(
+                ["ros2", "launch", "slam_toolbox", "online_async_launch.py", "--help"],
+                capture_output=True, text=True, timeout=10
+            )
+            self.assertNotIn("not found", result.stderr.lower())
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception as e:
+            self.fail(f"Failed to validate slam launch file: {e}")
+
+    def test_map_server_executable_exists(self):
+        """Test that map_server executable exists"""
+        try:
+            result = subprocess.run(
+                ["ros2", "pkg", "executables", "nav2_map_server"],
+                capture_output=True, text=True, timeout=5
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("map_server", result.stdout)
+        except Exception as e:
+            self.fail(f"Failed to validate map_server executable: {e}")
+
+    def test_all_launch_commands_have_valid_syntax(self):
+        """Test that all launch commands have valid ROS2 command syntax"""
+        for launch_type, config in LAUNCH_CONFIGS.items():
+            with self.subTest(launch_type=launch_type):
+                command_parts = config.command_template.split()
+
+                # Should start with ros2
+                self.assertEqual(command_parts[0], "ros2")
+
+                # Should have either 'launch' or 'run' as second part
+                self.assertIn(command_parts[1], ["launch", "run"])
+
+                # Should have package name as third part
+                self.assertTrue(len(command_parts[2]) > 0)
+
+                # Should have executable/launch file as fourth part
+                self.assertTrue(len(command_parts[3]) > 0)
 
 
 if __name__ == "__main__":

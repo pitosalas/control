@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import unittest
-from unittest.mock import MagicMock, patch
-from control.commands.robot_controller import RobotController
+from unittest.mock import MagicMock
+
 from control.commands.config_manager import ConfigManager
+from control.commands.robot_controller import RobotController
 
 
 class TestRobotControllerLaunch(unittest.TestCase):
@@ -19,13 +20,19 @@ class TestRobotControllerLaunch(unittest.TestCase):
     def test_launch_list(self):
         """Test launch list returns available launch types"""
         # Mock ProcessApi methods
-        self.controller.process.get_available_launch_types.return_value = ["nav", "slam", "map_server"]
+        self.controller.process.get_available_launch_types.return_value = [
+            "nav",
+            "slam",
+            "map_server",
+        ]
         mock_configs = {
             "nav": MagicMock(description="Navigation stack"),
             "slam": MagicMock(description="SLAM toolbox"),
-            "map_server": MagicMock(description="Map server")
+            "map_server": MagicMock(description="Map server"),
         }
-        self.controller.process.get_launch_config.side_effect = lambda t: mock_configs[t]
+        self.controller.process.get_launch_config.side_effect = lambda t: mock_configs[
+            t
+        ]
 
         # Mock launch status
         self.controller._is_launch_running = MagicMock(return_value=False)
@@ -64,7 +71,9 @@ class TestRobotControllerLaunch(unittest.TestCase):
 
     def test_launch_start_invalid_type(self):
         """Test launch start with invalid type"""
-        self.controller.process.launch_by_type.side_effect = ValueError("Unknown launch type: invalid")
+        self.controller.process.launch_by_type.side_effect = ValueError(
+            "Unknown launch type: invalid"
+        )
         self.controller._is_launch_running = MagicMock(return_value=False)
 
         response = self.controller.launch_start("invalid")
@@ -126,18 +135,19 @@ class TestRobotControllerLaunch(unittest.TestCase):
 
     def test_launch_status_all(self):
         """Test launch status for all launch types"""
-        self.controller._get_launch_status = MagicMock(return_value={
-            "nav": {"running": True, "process_id": "nav-id", "pid": 123},
-            "slam": {"running": False, "process_id": None, "pid": None},
-            "map_server": {"running": False, "process_id": None, "pid": None}
-        })
+        self.controller._get_launch_status = MagicMock(
+            return_value={
+                "nav": {"running": True, "process_id": "nav-id", "pid": 123},
+                "slam": {"running": False, "process_id": None, "pid": None},
+                "map_server": {"running": False, "process_id": None, "pid": None},
+            }
+        )
 
         response = self.controller.launch_status()
 
         self.assertTrue(response.success)
         self.assertEqual(response.message, "All launch status")
         self.assertIn("launches", response.data)
-
 
 
 if __name__ == "__main__":
