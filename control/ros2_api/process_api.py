@@ -24,6 +24,7 @@ class ProcessInfo:
     is_running: bool
     pid: int
     start_time: float
+    log_file: Optional[str] = None
 
 
 @dataclass
@@ -96,11 +97,12 @@ class ProcessApi(BaseApi):
         # Handle map special case with map_name parameter
         if launch_type == "map" and "map_name" in params:
             map_name = params.pop("map_name")  # Remove from params to avoid duplication
-            from pathlib import Path
-            map_file = Path("maps") / f"{map_name}.yaml"
+            # Maps stored in ~/.control/maps/
+            maps_dir = self.config.get_control_dir() / "maps"
+            map_file = maps_dir / f"{map_name}.yaml"
             if not map_file.exists():
                 raise ValueError(f"Map file not found: {map_file}")
-            map_file_abs = map_file.absolute()
+            map_file_abs = map_file.resolve()
             map_args = f"--ros-args -p yaml_filename:={map_file_abs}"
         else:
             map_args = ""
@@ -123,7 +125,7 @@ class ProcessApi(BaseApi):
             command = config.command_template.format(params=params_str).strip()
 
         self.log_debug(f"Launching {launch_type}: {command}")
-        return self.launch_command(command)
+        return self.launch_command(command, log_name=launch_type)
 
     def kill_by_type(self, launch_type: str, tracked_process_id: str) -> bool:
         """Kill a process by launch type using its tracked process ID"""
@@ -143,11 +145,22 @@ class ProcessApi(BaseApi):
             # Return status for all tracked processes
             return self.get_running_processes()
 
-    def launch_command(self, command: str) -> str:
+    def launch_command(self, command: str, log_name: Optional[str] = None) -> str:
         """Launch shell command and return process ID"""
         process_id = str(uuid.uuid4())
 
         self.log_debug(f"Launching: {command}")
+
+        # Create log file if log_name is provided
+        log_file_path = None
+        if log_name:
+            # Get log directory from config, default to "logs"
+            log_dir_config = self.config.get_variable("log_dir") or "logs"
+            # Resolve path relative to package directory
+            logs_dir = self.config.resolve_path(log_dir_config)
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_file_path = str(logs_dir / f"{log_name}_{timestamp}.log")
 
         try:
             proc = subprocess.Popen(
@@ -167,6 +180,7 @@ class ProcessApi(BaseApi):
                 is_running=True,
                 pid=proc.pid,
                 start_time=time.time(),
+                log_file=log_file_path,
             )
 
             # Start output capture thread
@@ -177,7 +191,10 @@ class ProcessApi(BaseApi):
             ).start()
 
             self.processes[process_id] = process_info
-            self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}")
+            if log_file_path:
+                self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}, Log: {log_file_path}")
+            else:
+                self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}")
             return process_id
 
         except Exception as e:
@@ -190,8 +207,9 @@ class ProcessApi(BaseApi):
             self.log_error("Map saver service not available")
             return False
 
-        maps_dir = Path("maps")
-        maps_dir.mkdir(exist_ok=True)
+        # Maps stored in ~/.control/maps/
+        maps_dir = self.config.get_control_dir() / "maps"
+        maps_dir.mkdir(parents=True, exist_ok=True)
         map_path = maps_dir / filename
 
         request = SaveMap.Request()
@@ -303,6 +321,12 @@ class ProcessApi(BaseApi):
             return output.copy()
         return output[-lines:] if lines > 0 else []
 
+    def get_process_log_file(self, process_id: str) -> Optional[str]:
+        """Get log file path for a process"""
+        if process_id not in self.processes:
+            return None
+        return self.processes[process_id].log_file
+
     def get_running_processes(self) -> Dict[str, dict]:
         """Get status of all managed processes"""
         result = {}
@@ -363,17 +387,41 @@ class ProcessApi(BaseApi):
             return False
 
     def _capture_output(self, process_id: str, process_info: ProcessInfo):
-        """Capture output in background thread"""
+        """Capture output in background thread and write to log file if configured"""
+        log_file_handle = None
         try:
+            # Open log file if configured
+            if process_info.log_file:
+                log_file_handle = open(process_info.log_file, 'w')
+                log_file_handle.write(f"=== Process Log ===\n")
+                log_file_handle.write(f"Command: {process_info.command}\n")
+                log_file_handle.write(f"PID: {process_info.pid}\n")
+                log_file_handle.write(f"Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(process_info.start_time))}\n")
+                log_file_handle.write(f"==================\n\n")
+                log_file_handle.flush()
+
             for line in iter(process_info.process.stdout.readline, ""):
                 if line:
-                    process_info.output.append(line.strip())
+                    stripped_line = line.strip()
+                    process_info.output.append(stripped_line)
+
+                    # Write to log file if configured
+                    if log_file_handle:
+                        log_file_handle.write(line)
+                        log_file_handle.flush()
+
                 # Check if process has ended
                 if process_info.process.poll() is not None:
                     break
         except Exception as e:
             self.log_error(f"Error capturing output for process {process_id}: {e}")
         finally:
+            # Close log file
+            if log_file_handle:
+                log_file_handle.write(f"\n=== Process Ended ===\n")
+                log_file_handle.write(f"Ended: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                log_file_handle.close()
+
             process_info.is_running = False
             self.log_debug(f"Process {process_id} finished")
 

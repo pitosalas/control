@@ -8,17 +8,19 @@ from typing import Dict, Any
 class ConfigManager:
     DEFAULT_CONFIG = {
         "linear_speed": 0.3,
-        "angular_speed": 0.4
+        "angular_speed": 0.4,
+        "log_dir": "logs"
     }
 
     def __init__(self, config_file: str = None):
         if config_file is None:
-            # Use user's home directory for writable config file
-            self.config_file = Path.home() / ".config" / "control_config.json"
-            # Create .config directory if it doesn't exist
-            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            # Use ~/.control/ for all user data (ROS2 best practice for user-writable data)
+            self.control_dir = Path.home() / ".control"
+            self.control_dir.mkdir(parents=True, exist_ok=True)
+            self.config_file = self.control_dir / "control_config.json"
         else:
             self.config_file = Path(config_file)
+            self.control_dir = self.config_file.parent
 
         self.variables: Dict[str, Any] = {}
         self.load_config()
@@ -52,6 +54,9 @@ class ConfigManager:
             # Keep as string
             self.variables[name] = value
 
+        # Save configuration after setting variable
+        self.save_config()
+
     def _is_number(self, value: str) -> bool:
         """Check if string represents a valid number (int or float)"""
         try:
@@ -75,3 +80,20 @@ class ConfigManager:
     def variable_exists(self, name: str) -> bool:
         """Check if variable exists"""
         return name in self.variables
+
+    def get_control_dir(self) -> Path:
+        """Get the ~/.control directory for user data"""
+        return self.control_dir
+
+    def resolve_path(self, path_str: str) -> Path:
+        """
+        Resolve a path relative to ~/.control/ directory.
+        If path is absolute or starts with ~, use as-is.
+        Otherwise, resolve relative to ~/.control/ directory.
+        """
+        path = Path(path_str).expanduser()
+        if path.is_absolute():
+            return path
+        else:
+            # Resolve relative to ~/.control/ directory
+            return (self.control_dir / path).resolve()

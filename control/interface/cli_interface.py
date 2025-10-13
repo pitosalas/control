@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import click
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
@@ -16,10 +17,13 @@ class CLIInterface:
         self.history = FileHistory(str(history_file))
 
     def run(self):
-        print("Robot Command Interface")
-        print("Type 'help' for commands or 'exit' to quit")
-
-        self._interactive_mode()
+        # Check if arguments were passed (non-interactive mode)
+        if len(sys.argv) > 1:
+            self._command_mode()
+        else:
+            print("Robot Command Interface")
+            print("Type 'help' for commands or 'exit' to quit")
+            self._interactive_mode()
 
     def _interactive_mode(self):
         """Interactive mode using testskelclick.py pattern."""

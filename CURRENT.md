@@ -6,10 +6,13 @@
 - ✅ Updated map_server launch config to use yaml_filename parameter
 - ✅ Enhanced ProcessApi to handle map file loading at launch time
 - ✅ Cleaned up unused map load service client and methods
+- ✅ Fixed command syntax documentation (map_server → map, map_name=x → --map-name x)
+- ✅ Added automatic log file generation for all launch processes (stored in logs/ directory)
+- ✅ Updated launch status to display log file locations
 
 ## Current Todo List
-- [ ] Fix bare except statements in process_api.py (lines 305, 333, 361, 406) for proper error handling
-- [ ] Test new map_name parameter functionality with launch start map_server
+- [ ] Fix bare except statements in process_api.py for proper error handling
+- [ ] Test new map_name parameter functionality with: launch start map --map-name <mapname>
 
 ## Known Issues & Bugs
 
@@ -23,6 +26,21 @@
 
 ## Architecture Notes
 
+### Path Resolution (ROS2 Standard)
+- **User Data Directory**: `~/.control/` - All user-writable data (follows ROS2 best practices)
+- **Maps Directory**: `~/.control/maps/` - stores map .yaml and .pgm files
+- **Logs Directory**: Configurable via `log_dir` config (default: `~/.control/logs/`)
+- **Config File**: `~/.control/control_config.json` - persistent configuration
+- **Behavior**:
+  - Relative paths (e.g., `logs`) → resolve to `~/.control/` directory (`~/.control/logs/`)
+  - Absolute paths (e.g., `/var/log/ros2`) → used as-is
+  - Home paths (e.g., `~/ros2_logs`) → expanded and used as-is
+- **Benefits**:
+  - Works from any directory (can run `ros2 run control run` from anywhere)
+  - No hardcoded user paths, portable across machines
+  - Follows ROS2 conventions for user data
+  - Survives package rebuilds
+
 ### Launch System
 - Uses unified launch command system with singleton process tracking
 - Three launch types: `nav`, `slam`, `map_server`
@@ -32,8 +50,23 @@
 ### Map Management
 - **OLD**: Used service calls to load maps after map_server was running
 - **NEW**: Launch map_server with specific map file using yaml_filename parameter
-- Maps stored in `maps/` directory with .yaml and .pgm files
+- Maps stored in `~/.control/maps/` directory with .yaml and .pgm files
 - Map save still uses service calls (working)
+- All map operations use `~/.control/` paths (portable, no hardcoded user paths)
+
+### Process Logging
+- All launch processes (nav, slam, map) automatically log output to files
+- Log files stored in configurable directory (default: `~/.control/logs/`) with format: `<launch_type>_<timestamp>.log`
+- Includes header with command, PID, and start time
+- Real-time output capture to both memory and log file
+- Log file path shown in `launch status` command output
+- Useful for debugging issues like map loading errors or navigation problems
+- **Configuration**: Use `config set log_dir <path>` to change log directory (supports ~ for home directory)
+  - Default: `logs` (relative to `~/.control/` directory)
+  - Relative paths resolve to `~/.control/` (e.g., `logs` → `~/.control/logs/`)
+  - Absolute paths and `~/` paths work as expected
+  - Example: `config set log_dir ~/ros2_logs` or `config set log_dir /var/log/ros2`
+  - Settings saved to `~/.control/control_config.json` and persist across sessions
 
 ## What to Work On Next
 
@@ -57,13 +90,16 @@
 ### New Map Loading (Current Approach)
 ```bash
 # Start map server with specific map
-launch start map_server map_name=map5
+launch start map --map-name map5
 
-# Check status
-launch status map_server
+# Check status (shows PID and log file location)
+launch status map
+
+# View log file (shown in status output)
+cat logs/map_<timestamp>.log
 
 # Stop map server
-launch kill map_server
+launch kill map
 ```
 
 ### Other Launch Commands
@@ -74,9 +110,31 @@ launch start nav               # Start navigation
 launch status                  # Show all launch status
 ```
 
+### Configuration Examples
+```bash
+# View current log directory setting
+config get log_dir
+
+# Change log directory to home directory
+config set log_dir ~/ros2_logs
+
+# Change to absolute path
+config set log_dir /var/log/ros2
+
+# View all configuration
+config list
+```
+
 ## File Locations
+
+### Source Code
 - Launch commands: `control/commands/launch_commands.py`
 - Navigation commands: `control/commands/navigation_commands.py`
 - Process API: `control/ros2_api/process_api.py`
 - Robot controller: `control/commands/robot_controller.py`
 - CLI interface: `control/interface/click_cli.py`
+
+### User Data (Runtime)
+- **Configuration**: `~/.control/control_config.json` - persistent config settings
+- **Maps**: `~/.control/maps/` - saved map files (.yaml, .pgm)
+- **Logs**: `~/.control/logs/` - launch process logs (default location)

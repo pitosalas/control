@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'control'
 
@@ -13,6 +15,13 @@ setup(
         ('share/' + package_name + '/launch', ['launch/localization_launch.py']),
         ('share/' + package_name + '/config', ['config/mapper_params_localization.yaml']),
     ],
+    package_data={
+        package_name: [
+            '../control_config.json',
+            '../maps/*.yaml',
+            '../maps/*.pgm',
+        ],
+    },
     install_requires=['setuptools', 'click', 'prompt_toolkit'],
     zip_safe=True,
     maintainer='your_name',

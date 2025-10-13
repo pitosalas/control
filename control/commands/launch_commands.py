@@ -18,11 +18,11 @@ def build_launch_commands() -> Dict[str, CommandDef]:
             parameters=[
                 ParameterDef("launch_type", str, description="Launch type (nav, slam, map)"),
                 ParameterDef("use_sim_time", bool, required=False, default=False,
-                           description="Use simulation time"),
+                           description="Use simulation time (use --sim-time flag)"),
                 ParameterDef("map_name", str, required=False,
-                           description="Map name for map launch type (without extension)")
+                           description="Map name for map launch type - use --map-name option (without extension)")
             ],
-            description="Start a launch process by type",
+            description="Start a launch process by type (e.g., launch start map --map-name map5)",
             group="launch"
         ),
         "launch.kill": CommandDef(

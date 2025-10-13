@@ -102,12 +102,13 @@ class RobotController:
     def launch_status(self, launch_type: str = None) -> CommandResponse:
         """Get status of launch processes"""
         if launch_type:
-            # Status for specific launch type - format as single row table
+            # Status for specific launch type - format as single row table plus log file
             process_id = self.launch_process_ids.get(launch_type)
             if not process_id:
                 status = "STOPPED"
                 pid = "N/A"
                 proc_id = "N/A"
+                log_file = None
             else:
                 is_running = self.process.is_process_running(process_id)
                 if not is_running:
@@ -115,16 +116,21 @@ class RobotController:
                     status = "STOPPED"
                     pid = "N/A"
                     proc_id = "N/A"
+                    log_file = None
                 else:
                     status = "RUNNING"
                     process_info = self.process.processes.get(process_id)
                     pid = str(process_info.pid) if process_info else "Unknown"
                     proc_id = process_id[:8]
+                    log_file = self.process.get_process_log_file(process_id)
 
             header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
             separator = "-" * 40
             row = f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}"
             formatted_output = f"{header}\n{separator}\n{row}"
+
+            if log_file:
+                formatted_output += f"\nLog file: {log_file}"
 
             return CommandResponse(True, formatted_output)
         else:
@@ -136,6 +142,7 @@ class RobotController:
             header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
             separator = "-" * 40
             rows = []
+            log_files = []
 
             for launch_type, info in status_data.items():
                 status = "RUNNING" if info["running"] else "STOPPED"
@@ -143,7 +150,17 @@ class RobotController:
                 proc_id = info["process_id"][:8] if info["process_id"] else "N/A"
                 rows.append(f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}")
 
+                # Get log file if process is running
+                if info["running"] and info["process_id"]:
+                    log_file = self.process.get_process_log_file(info["process_id"])
+                    if log_file:
+                        log_files.append(f"  {launch_type}: {log_file}")
+
             formatted_output = f"{header}\n{separator}\n" + "\n".join(rows)
+
+            if log_files:
+                formatted_output += "\n\nLog files:\n" + "\n".join(log_files)
+
             return CommandResponse(True, formatted_output)
 
     def launch_doctor(self) -> CommandResponse:
@@ -458,11 +475,11 @@ class RobotController:
             return CommandResponse(False, "Failed to save map via service call")
 
     def list_maps(self) -> CommandResponse:
-        from pathlib import Path
-        maps_dir = Path("maps")
+        # Maps stored in ~/.control/maps/
+        maps_dir = self.config.get_control_dir() / "maps"
 
         if not maps_dir.exists():
-            return CommandResponse(True, "No maps directory found", {"maps": []})
+            return CommandResponse(True, "No maps directory found. Maps should be in ~/.control/maps/", {"maps": []})
 
         # Find all .yaml files (map metadata files)
         yaml_files = list(maps_dir.glob("*.yaml"))
