@@ -228,16 +228,17 @@ class RobotController:
                 issues.append(f"Orphaned {launch_type} process tracking (process ended but still tracked)")
                 suggestions.append(f"launch status  # Check current status and clear stale tracking")
 
-        # Check for stale processes
-        try:
-            result = subprocess.run(['pgrep', '-f', 'ros2.*launch.*navigation_launch'],
-                                  capture_output=True, text=True)
-            stale_pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
-            if len(stale_pids) > 1:
-                issues.append(f"Multiple navigation launch processes: {stale_pids}")
-                suggestions.append("launch kill-all nav  # Kill ALL navigation processes")
-        except Exception:
-            pass
+        # Check for stale processes (only if not already detected)
+        if "nav" not in external_processes:
+            try:
+                result = subprocess.run(['pgrep', '-f', 'ros2.*launch.*navigation_launch'],
+                                      capture_output=True, text=True)
+                stale_pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
+                if len(stale_pids) > 1:
+                    issues.append(f"Multiple navigation launch processes: {stale_pids}")
+                    suggestions.append("launch kill-all nav  # Kill ALL navigation processes")
+            except Exception:
+                pass
 
         # Format output
         if not issues:
@@ -463,31 +464,24 @@ class RobotController:
 
 
     def save_current_map(self, filename: str) -> CommandResponse:
-        # Check if map is running
         if not self.launch_process_ids.get("map"):
             return CommandResponse(False, "Map server is not running. Start it with: launch start map")
 
-        # Use service call to save map
+        self.config.ensure_subdirs()
         success = self.process.save_map_via_service(filename)
         if success:
-            return CommandResponse(True, f"Map saved to maps/{filename}")
+            return CommandResponse(True, f"Map saved to {self.config.get_maps_dir() / filename}")
         else:
             return CommandResponse(False, "Failed to save map via service call")
 
     def list_maps(self) -> CommandResponse:
-        # Maps stored in ~/.control/maps/
-        maps_dir = self.config.get_control_dir() / "maps"
-
-        if not maps_dir.exists():
-            return CommandResponse(True, "No maps directory found. Maps should be in ~/.control/maps/", {"maps": []})
-
-        # Find all .yaml files (map metadata files)
+        self.config.ensure_subdirs()
+        maps_dir = self.config.get_maps_dir()
         yaml_files = list(maps_dir.glob("*.yaml"))
 
         if not yaml_files:
-            return CommandResponse(True, "No maps found in maps/ folder", {"maps": []})
+            return CommandResponse(True, f"No maps found in {maps_dir}", {"maps": []})
 
-        # Get just the filenames without extension
         map_names = [f.stem for f in yaml_files]
         map_names.sort()
 

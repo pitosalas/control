@@ -28,9 +28,9 @@
 
 ### Path Resolution (ROS2 Standard)
 - **User Data Directory**: `~/.control/` - All user-writable data (follows ROS2 best practices)
-- **Maps Directory**: `~/.control/maps/` - stores map .yaml and .pgm files
+- **Maps Directory**: Configurable via `maps_dir` config (default: `~/.control/maps/`)
 - **Logs Directory**: Configurable via `log_dir` config (default: `~/.control/logs/`)
-- **Config File**: `~/.control/control_config.json` - persistent configuration
+- **Config File**: `~/.control/config.yaml` - persistent configuration
 - **Behavior**:
   - Relative paths (e.g., `logs`) → resolve to `~/.control/` directory (`~/.control/logs/`)
   - Absolute paths (e.g., `/var/log/ros2`) → used as-is
@@ -66,7 +66,7 @@
   - Relative paths resolve to `~/.control/` (e.g., `logs` → `~/.control/logs/`)
   - Absolute paths and `~/` paths work as expected
   - Example: `config set log_dir ~/ros2_logs` or `config set log_dir /var/log/ros2`
-  - Settings saved to `~/.control/control_config.json` and persist across sessions
+  - Settings saved to `~/.control/config.yaml` and persist across sessions
 
 ## What to Work On Next
 
@@ -135,6 +135,6 @@ config list
 - CLI interface: `control/interface/click_cli.py`
 
 ### User Data (Runtime)
-- **Configuration**: `~/.control/control_config.json` - persistent config settings
-- **Maps**: `~/.control/maps/` - saved map files (.yaml, .pgm)
-- **Logs**: `~/.control/logs/` - launch process logs (default location)
+- **Configuration**: `~/.control/config.yaml` - persistent config settings
+- **Maps**: `~/.control/maps/` - saved map files (.yaml, .pgm) (configurable)
+- **Logs**: `~/.control/logs/` - launch process logs (configurable)

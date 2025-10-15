@@ -12,15 +12,9 @@ class CalibrationApi(BaseApi):
     Provides predefined movement patterns for calibration purposes.
     """
 
-    def __init__(
-        self,
-        movement_api: MovementApi = None,
-        config_manager: ConfigManager = None,
-    ):
-        """Initialize calibration API with movement API dependency."""
+    def __init__(self, movement_api: MovementApi, config_manager: ConfigManager):
         super().__init__("calibration_api", config_manager)
-
-        self.movement = movement_api or MovementApi(config_manager)
+        self.movement = movement_api
 
     def calibrate_square(self, side_length: float):
         """Move robot in a square pattern for calibration."""
@@ -33,11 +27,7 @@ class CalibrationApi(BaseApi):
 
         self.log_info("Square calibration completed")
 
-    def calibrate_circle(self, radius: float, angular_speed: float = None):
-        """Move robot in a circular pattern for calibration."""
-        if angular_speed is None:
-            angular_speed = self.movement.angular
-
+    def calibrate_circle(self, radius: float, angular_speed: float):
         circumference = 2 * math.pi * radius
         linear_speed = self.movement.linear
         total_time = circumference / linear_speed

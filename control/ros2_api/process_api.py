@@ -154,11 +154,9 @@ class ProcessApi(BaseApi):
         # Create log file if log_name is provided
         log_file_path = None
         if log_name:
-            # Get log directory from config, default to "logs"
+            self.config.ensure_subdirs()
             log_dir_config = self.config.get_variable("log_dir") or "logs"
-            # Resolve path relative to package directory
             logs_dir = self.config.resolve_path(log_dir_config)
-            logs_dir.mkdir(parents=True, exist_ok=True)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             log_file_path = str(logs_dir / f"{log_name}_{timestamp}.log")
 
@@ -207,10 +205,8 @@ class ProcessApi(BaseApi):
             self.log_error("Map saver service not available")
             return False
 
-        # Maps stored in ~/.control/maps/
-        maps_dir = self.config.get_control_dir() / "maps"
-        maps_dir.mkdir(parents=True, exist_ok=True)
-        map_path = maps_dir / filename
+        self.config.ensure_subdirs()
+        map_path = self.config.get_maps_dir() / filename
 
         request = SaveMap.Request()
         request.map_topic = "map"

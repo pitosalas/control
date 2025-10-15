@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import json
+import yaml
 import os
 from pathlib import Path
 from typing import Dict, Any
@@ -9,35 +9,34 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "linear_speed": 0.3,
         "angular_speed": 0.4,
-        "log_dir": "logs"
+        "log_dir": "logs",
+        "maps_dir": "maps"
     }
 
     def __init__(self, config_file: str = None):
         if config_file is None:
-            # Use ~/.control/ for all user data (ROS2 best practice for user-writable data)
             self.control_dir = Path.home() / ".control"
             self.control_dir.mkdir(parents=True, exist_ok=True)
-            self.config_file = self.control_dir / "control_config.json"
+            self.config_file = self.control_dir / "config.yaml"
         else:
             self.config_file = Path(config_file)
             self.control_dir = self.config_file.parent
 
         self.variables: Dict[str, Any] = {}
         self.load_config()
+        self.ensure_subdirs()
 
     def load_config(self):
-        """Load configuration from file"""
         try:
             with open(self.config_file, 'r') as f:
-                self.variables = json.load(f)
+                self.variables = yaml.safe_load(f) or {}
         except FileNotFoundError:
             self.variables = self.DEFAULT_CONFIG.copy()
             self.save_config()
 
     def save_config(self):
-        """Save configuration to file"""
         with open(self.config_file, 'w') as f:
-            json.dump(self.variables, f, indent=2)
+            yaml.dump(self.variables, f, default_flow_style=False, sort_keys=False)
 
     def set_variable(self, name: str, value: str):
         """Set a variable value, attempting type conversion"""
@@ -84,6 +83,16 @@ class ConfigManager:
     def get_control_dir(self) -> Path:
         """Get the ~/.control directory for user data"""
         return self.control_dir
+
+    def ensure_subdirs(self):
+        maps_dir = self.get_maps_dir()
+        maps_dir.mkdir(parents=True, exist_ok=True)
+
+        log_dir = self.resolve_path(self.get_variable("log_dir") or "logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+    def get_maps_dir(self) -> Path:
+        return self.resolve_path(self.get_variable("maps_dir") or "maps")
 
     def resolve_path(self, path_str: str) -> Path:
         """
