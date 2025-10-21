@@ -11,3 +11,5 @@ ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGrap
 1) ros2 launch slam_toolbox online_async_launch.py slam_params_file:=$PWD/mapper_params_lifelong.yaml
 
 ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGraph "{filename: '/home/pitosalas/.control/maps/production'}"
+
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: {data: '/home/pitosalas/.control/maps/production'}}"
