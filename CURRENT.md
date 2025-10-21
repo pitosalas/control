@@ -138,3 +138,11 @@ config list
 - **Configuration**: `~/.control/config.yaml` - persistent config settings
 - **Maps**: `~/.control/maps/` - saved map files (.yaml, .pgm) (configurable)
 - **Logs**: `~/.control/logs/` - launch process logs (configurable)
+
+
+## New features and bug fixes
+
+- check that i can enter negative numbers for turn and move
+- allow all commands to be abbreviated to three letters (maybe just make them three letters)
+- change the way launch works to have a series of "canned" or parameterized launch commands that come directly from the config
+- change the way the map command works to simply include commands like map save to save both kinds of maps
