@@ -13,3 +13,5 @@ ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGrap
 ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGraph "{filename: '/home/pitosalas/.control/maps/production'}"
 
 ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: {data: '/home/pitosalas/.control/maps/production'}}"
+
+ros2 run rviz2 rviz2 --ros-args --log-level rviz:=warn
