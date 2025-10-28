@@ -1,0 +1,17 @@
+turn clockwise <degrees>
+
+Turn the robot clockwise by a specified angle in degrees.
+
+USAGE:
+  turn clockwise <degrees>
+  trn clockwise <degrees>
+  turn clk <degrees>
+  trn clk <degrees>
+
+PARAMETERS:
+  degrees    Angle to turn in degrees (positive or negative)
+
+EXAMPLES:
+  turn clockwise 90
+  trn clk 45
+  trn clk -90    # Turn counterclockwise (negative angle)

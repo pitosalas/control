@@ -1,0 +1,12 @@
+robot stop
+
+Stop all robot movement immediately.
+
+USAGE:
+  robot stop
+  rob stop
+  rob stp
+
+EXAMPLES:
+  robot stop
+  rob stp

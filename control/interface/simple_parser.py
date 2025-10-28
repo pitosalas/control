@@ -30,9 +30,8 @@ Abbreviation System:
     - "mov fwd 1.5"       (abbr command + abbr subcommand)
 """
 
-from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-
+from typing import Any, Dict, List, Optional, Tuple
 
 # ============================================================================
 # ABBREVIATIONS - Single source of truth for all keyword abbreviations
@@ -40,54 +39,45 @@ from dataclasses import dataclass
 
 ABBREVIATIONS = {
     # Command groups
-    'move': 'mov',
-    'turn': 'trn',
-    'robot': 'rob',
-    'launch': 'lch',
-    'config': 'cfg',
-    'system': 'sys',
-    'script': 'scr',
-    'map': 'map',  # Already 3 letters
-
+    "move": "m",
+    "turn": "t",
+    "robot": "r",
+    "launch": "lch",
+    "config": "c",
+    "system": "sys",
+    "script": "scr",
+    "map": "map",  # Already 3 letters
     # Movement subcommands
-    'forward': 'fwd',
-    'backward': 'bak',
-    'distance': 'dis',
-    'time': 'tim',
-
+    "forward": "fwd",
+    "backward": "bak",
+    "distance": "dis",
+    "time": "tim",
     # Turn subcommands
-    'clockwise': 'clk',
-    'counterclockwise': 'ccw',
-    'degrees': 'deg',
-    'radians': 'rad',
-
+    "clockwise": "clk",
+    "counterclockwise": "ccw",
+    "degrees": "deg",
+    "radians": "rad",
     # Robot subcommands
-    'stop': 'stp',
-    'status': 'sts',
-
+    "stop": "stp",
+    "status": "sts",
     # Launch subcommands
-    'list': 'lst',
-    'start': 'sta',
-    'kill': 'kil',
-    'doctor': 'doc',
-
+    "list": "lst",
+    "start": "sta",
+    "kill": "kil",
+    "doctor": "doc",
     # Config subcommands
-    'set': 'set',  # Already 3 letters
-    'get': 'get',  # Already 3 letters
-
+    "set": "set",  # Already 3 letters
+    "get": "get",  # Already 3 letters
     # System subcommands
-    'topics': 'top',
-
+    "topics": "top",
     # Script subcommands
-    'square': 'sqr',
-    'stress_test': 'str',
-
+    "square": "sqr",
+    "stress_test": "str",
     # Map subcommands
-    'save': 'sav',
-
+    "save": "sav",
     # Special commands
-    'help': 'hlp',
-    'exit': 'ext',
+    "help": "hlp",
+    "exit": "ext",
 }
 
 # Create reverse lookup: abbreviation -> full name
@@ -97,6 +87,7 @@ FULL_NAMES = {abbr: full for full, abbr in ABBREVIATIONS.items()}
 # ============================================================================
 # DATA STRUCTURES
 # ============================================================================
+
 
 @dataclass
 class ParsedCommand:
@@ -108,7 +99,8 @@ class ParsedCommand:
         "robot stop"       -> ParsedCommand("robot", "stop", [])
         "help move"        -> ParsedCommand("help", None, ["move"])
     """
-    command: str          # Full command name (e.g., "move", not "mov")
+
+    command: str  # Full command name (e.g., "move", not "mov")
     subcommand: Optional[str]  # Full subcommand name or None
     arguments: List[Any]  # Parsed argument values (int, float, str, bool)
 
@@ -145,6 +137,7 @@ class ParsedCommand:
 @dataclass
 class ParseError:
     """Represents a parsing error with helpful message."""
+
     message: str
     input_text: str
     position: Optional[int]
@@ -153,6 +146,7 @@ class ParseError:
 # ============================================================================
 # PARSER
 # ============================================================================
+
 
 class SimpleCommandParser:
     """
@@ -219,15 +213,15 @@ class SimpleCommandParser:
             "nav"   -> "nav" (str)
         """
         # Try boolean
-        if value_str.lower() in ('true', 'yes', '1'):
+        if value_str.lower() in ("true", "yes", "1"):
             return True
-        if value_str.lower() in ('false', 'no', '0'):
+        if value_str.lower() in ("false", "no", "0"):
             return False
 
         # Try int
         try:
             # Check if it contains decimal point
-            if '.' not in value_str:
+            if "." not in value_str:
                 return int(value_str)
         except ValueError:
             pass
@@ -250,7 +244,9 @@ class SimpleCommandParser:
         """Parse list of token strings into typed values."""
         return [self.parse_value(arg) for arg in tokens]
 
-    def parse(self, input_text: str) -> Tuple[Optional[ParsedCommand], Optional[ParseError]]:
+    def parse(
+        self, input_text: str
+    ) -> Tuple[Optional[ParsedCommand], Optional[ParseError]]:
         """Parse a command line into a ParsedCommand."""
         tokens = input_text.strip().split()
 
@@ -270,7 +266,9 @@ class SimpleCommandParser:
             arguments = self._parse_arguments(tokens[1:])
             return ParsedCommand(command, None, arguments), None
 
-    def parse_tokens(self, tokens: List[str]) -> Tuple[Optional[ParsedCommand], Optional[ParseError]]:
+    def parse_tokens(
+        self, tokens: List[str]
+    ) -> Tuple[Optional[ParsedCommand], Optional[ParseError]]:
         """
         Parse pre-tokenized command.
 
@@ -289,6 +287,7 @@ class SimpleCommandParser:
 # USAGE EXAMPLES
 # ============================================================================
 
+
 def demonstrate_parser():
     """
     Demonstrate the simple parser vs Click.
@@ -303,28 +302,23 @@ def demonstrate_parser():
         "move forward 1.5",
         "turn clockwise 90",
         "robot stop",
-
         # Abbreviated commands
         "mov forward 1.5",
         "trn clockwise 90",
         "rob stop",
-
         # Abbreviated subcommands
         "move fwd 1.5",
         "turn clk 90",
         "robot stp",
-
         # Both abbreviated
         "mov fwd 1.5",
         "trn clk 90",
         "rob stp",
-
         # Negative numbers (no special handling needed!)
         "move forward -1.5",
         "turn clockwise -90",
         "mov fwd -2",
         "trn clk -45",
-
         # Multiple arguments
         "config set linear_speed 0.5",
         "cfg set linear_speed 0.5",
@@ -342,7 +336,9 @@ def demonstrate_parser():
             print(f"✗ '{cmd}' -> ERROR: {error.message}")
         else:
             print(f"✓ '{cmd}'")
-            print(f"  -> command={result.command}, subcommand={result.subcommand}, args={result.arguments}")
+            print(
+                f"  -> command={result.command}, subcommand={result.subcommand}, args={result.arguments}"
+            )
         print()
 
 

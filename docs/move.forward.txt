@@ -1,0 +1,17 @@
+move forward <meters>
+
+Move the robot forward by a specified distance in meters.
+
+USAGE:
+  move forward <meters>
+  mov forward <meters>
+  move fwd <meters>
+  mov fwd <meters>
+
+PARAMETERS:
+  meters    Distance to move in meters (positive or negative)
+
+EXAMPLES:
+  move forward 1.5
+  mov fwd 2.0
+  mov fwd -0.5    # Move backward (negative distance)

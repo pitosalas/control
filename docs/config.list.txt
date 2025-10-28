@@ -1,0 +1,12 @@
+config list
+
+List all configuration variables and their current values.
+
+USAGE:
+  config list
+  cfg list
+  cfg lst
+
+EXAMPLES:
+  config list
+  cfg lst

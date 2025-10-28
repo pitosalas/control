@@ -1,0 +1,11 @@
+map list
+
+List all available maps in the maps/ folder.
+
+USAGE:
+  map list
+  map lst
+
+EXAMPLES:
+  map list
+  map lst

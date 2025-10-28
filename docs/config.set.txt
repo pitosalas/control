@@ -1,0 +1,16 @@
+config set <name> <value>
+
+Set a configuration variable to a new value.
+
+USAGE:
+  config set <name> <value>
+  cfg set <name> <value>
+
+PARAMETERS:
+  name     Configuration variable name
+  value    New value for the variable
+
+EXAMPLES:
+  config set linear_speed 0.3
+  cfg set angular_speed 0.5
+  cfg set dry_run false

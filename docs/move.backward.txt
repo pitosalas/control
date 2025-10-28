@@ -1,0 +1,17 @@
+move backward <meters>
+
+Move the robot backward by a specified distance in meters.
+
+USAGE:
+  move backward <meters>
+  mov backward <meters>
+  move bak <meters>
+  mov bak <meters>
+
+PARAMETERS:
+  meters    Distance to move in meters (positive or negative)
+
+EXAMPLES:
+  move backward 1.5
+  mov bak 2.0
+  mov bak -0.5    # Move forward (negative distance)

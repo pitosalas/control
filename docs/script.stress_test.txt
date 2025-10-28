@@ -1,0 +1,16 @@
+script stress_test
+
+Run continuous stress test with rotation and monitoring.
+
+USAGE:
+  script stress_test
+  scr stress_test
+  scr str
+
+DESCRIPTION:
+  Runs a continuous rotation stress test to test robot performance
+  and endurance. Uses the stress_test_rotation_speed config variable.
+
+EXAMPLES:
+  script stress_test
+  scr str

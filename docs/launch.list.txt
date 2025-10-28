@@ -1,0 +1,12 @@
+launch list
+
+List all available launch types with their current status.
+
+USAGE:
+  launch list
+  lch list
+  lch lst
+
+EXAMPLES:
+  launch list
+  lch lst

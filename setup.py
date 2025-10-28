@@ -18,6 +18,7 @@ setup(
             '../control_config.json',
             '../maps/*.yaml',
             '../maps/*.pgm',
+            '../docs/*.txt',
         ],
     },
     install_requires=['setuptools', 'click', 'prompt_toolkit'],

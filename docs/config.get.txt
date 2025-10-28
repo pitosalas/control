@@ -1,0 +1,14 @@
+config get <name>
+
+Get the value of a configuration variable.
+
+USAGE:
+  config get <name>
+  cfg get <name>
+
+PARAMETERS:
+  name    Configuration variable name
+
+EXAMPLES:
+  config get linear_speed
+  cfg get angular_speed

@@ -1,0 +1,17 @@
+launch start <launch_type> <use_sim_time> <map_name>
+
+Start a launch process by type.
+
+USAGE:
+  launch start <launch_type> <use_sim_time> <map_name>
+  lch start <launch_type> <use_sim_time> <map_name>
+  lch sta <launch_type> <use_sim_time> <map_name>
+
+PARAMETERS:
+  launch_type     Type of launch to start (e.g., map, teleop)
+  use_sim_time    Whether to use simulation time (true/false)
+  map_name        Name of the map to use
+
+EXAMPLES:
+  launch start map false my_map
+  lch sta teleop false none

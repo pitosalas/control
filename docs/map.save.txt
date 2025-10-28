@@ -1,0 +1,14 @@
+map save <filename>
+
+Save the current map to the maps/ folder.
+
+USAGE:
+  map save <filename>
+  map sav <filename>
+
+PARAMETERS:
+  filename    Name for the saved map file
+
+EXAMPLES:
+  map save my_map
+  map sav room_scan

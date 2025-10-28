@@ -1,0 +1,15 @@
+launch kill <launch_type>
+
+Stop a launch process by type.
+
+USAGE:
+  launch kill <launch_type>
+  lch kill <launch_type>
+  lch kil <launch_type>
+
+PARAMETERS:
+  launch_type    Type of launch to kill (e.g., map, teleop)
+
+EXAMPLES:
+  launch kill map
+  lch kil teleop

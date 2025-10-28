@@ -1,0 +1,15 @@
+script square <meters>
+
+Execute a square movement pattern with specified side length.
+
+USAGE:
+  script square <meters>
+  scr square <meters>
+  scr sqr <meters>
+
+PARAMETERS:
+  meters    Length of each side of the square in meters
+
+EXAMPLES:
+  script square 1.0
+  scr sqr 0.5

@@ -1,0 +1,33 @@
+Robot Control - Quick Reference
+============================================================
+
+MOST COMMON COMMANDS:
+
+  move forward <meters>                    Move robot forward
+  turn clockwise <degrees>                 Turn robot clockwise
+  robot stop                               Stop robot immediately
+  config list                              Show all settings
+  map save <filename>                      Save current map
+
+LAUNCH & MAPPING:
+
+  launch start <type> ...                  Start ROS2 launch (map, teleop, etc)
+  launch list                              Show available launch types
+  launch kill <type>                       Stop a launch process
+  map list                                 List saved maps
+
+SCRIPT COMMANDS:
+
+  script square <meters>                   Drive in a square pattern
+  script stress_test                       Run rotation stress test
+
+ABBREVIATIONS:
+  All commands support 3-letter shortcuts:
+  mov fwd 1.5  |  trn clk 90  |  cfg lst  |  rob stp
+
+For detailed help on any command:
+  help <command>
+
+Examples:
+  help move forward
+  help config set

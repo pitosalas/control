@@ -1,0 +1,12 @@
+robot status
+
+Get current robot status including position and state.
+
+USAGE:
+  robot status
+  rob status
+  rob sts
+
+EXAMPLES:
+  robot status
+  rob sts
