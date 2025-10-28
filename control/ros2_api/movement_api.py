@@ -33,11 +33,6 @@ class MovementApi(BaseApi):
             10,
         )
 
-        self.linear_min = -0.5
-        self.linear_max = 0.5
-        self.angular_min = -1.0
-        self.angular_max = 1.0
-
         self.linear = self.config.get_variable("linear_speed")
         self.angular = self.config.get_variable("angular_speed")
         self.angular_max = self.config.get_variable("angular_max")

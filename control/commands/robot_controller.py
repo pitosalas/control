@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-from typing import Any, Dict, Optional
+"""Robot Controller - Orchestrates robot operations and APIs.
+
+Author: Pito Salas and Claude Code
+Open Source Under MIT license
+"""
+
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from control.ros2_api.movement_api import MovementApi
-from control.ros2_api.calibration_api import CalibrationApi
-from control.ros2_api.process_api import ProcessApi
 from control.commands.config_manager import ConfigManager
+from control.ros2_api.calibration_api import CalibrationApi
+from control.ros2_api.movement_api import MovementApi
+from control.ros2_api.process_api import ProcessApi
+
 
 @dataclass
 class CommandResponse:
     success: bool
     message: str
-    data: Any = None
+    data: dict | None = None
+
 
 class RobotController:
     """
@@ -26,11 +35,7 @@ class RobotController:
         self.process = ProcessApi(self.config)
 
         # Track singleton launch processes
-        self.launch_process_ids = {
-            "nav": None,
-            "slam": None,
-            "map": None
-        }
+        self.launch_process_ids = {"nav": None, "slam": None, "map": None}
 
     def _is_launch_running(self, launch_type: str) -> bool:
         """Check if a specific launch type is running"""
@@ -39,10 +44,11 @@ class RobotController:
             return False
         return self.process.is_process_running(process_id)
 
-    def _check_launch_conflict(self, launch_type: str) -> Optional[CommandResponse]:
-        """Check if launch type is already running and return error response if so"""
+    def _check_launch_conflict(self, launch_type: str):
         if self._is_launch_running(launch_type):
-            return CommandResponse(False, f"{launch_type} is already running, stop it first")
+            return CommandResponse(
+                False, f"{launch_type} is already running, stop it first"
+            )
         return None
 
     def _start_launch(self, launch_type: str, **params) -> CommandResponse:
@@ -55,7 +61,9 @@ class RobotController:
             # Start new launch process using ProcessApi
             process_id = self.process.launch_by_type(launch_type, **params)
             self.launch_process_ids[launch_type] = process_id
-            return CommandResponse(True, f"Started {launch_type}", {"process_id": process_id})
+            return CommandResponse(
+                True, f"Started {launch_type}", {"process_id": process_id}
+            )
         except ValueError as e:
             return CommandResponse(False, str(e))
 
@@ -89,8 +97,7 @@ class RobotController:
             separator = "-" * 50
             formatted_output = f"{header}\n{separator}\n" + "\n".join(launch_info)
             return CommandResponse(True, formatted_output)
-        else:
-            return CommandResponse(True, "No launch types available")
+        return CommandResponse(True, "No launch types available")
 
     def launch_start(self, launch_type: str, **kwargs) -> CommandResponse:
         """Start a launch process by type"""
@@ -100,7 +107,7 @@ class RobotController:
         """Stop a launch process by type"""
         return self._stop_launch(launch_type)
 
-    def launch_status(self, launch_type: str = None) -> CommandResponse:
+    def launch_status(self, launch_type) -> CommandResponse:
         """Get status of launch processes"""
         if launch_type:
             # Status for specific launch type - format as single row table plus log file
@@ -134,40 +141,38 @@ class RobotController:
                 formatted_output += f"\nLog file: {log_file}"
 
             return CommandResponse(True, formatted_output)
-        else:
-            # Status for all launch types - format as table
-            status_data = self._get_launch_status()
-            if not status_data:
-                return CommandResponse(True, "No launch processes tracked")
+        # Status for all launch types - format as table
+        status_data = self._get_launch_status()
+        if not status_data:
+            return CommandResponse(True, "No launch processes tracked")
 
-            header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
-            separator = "-" * 40
-            rows = []
-            log_files = []
+        header = f"{'TYPE':<12} {'STATUS':<8} {'PID':<8} {'PROC_ID':<10}"
+        separator = "-" * 40
+        rows = []
+        log_files = []
 
-            for launch_type, info in status_data.items():
-                status = "RUNNING" if info["running"] else "STOPPED"
-                pid = str(info["pid"]) if info["pid"] else "N/A"
-                proc_id = info["process_id"][:8] if info["process_id"] else "N/A"
-                rows.append(f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}")
+        for launch_type, info in status_data.items():
+            status = "RUNNING" if info["running"] else "STOPPED"
+            pid = str(info["pid"]) if info["pid"] else "N/A"
+            proc_id = info["process_id"][:8] if info["process_id"] else "N/A"
+            rows.append(f"{launch_type:<12} {status:<8} {pid:<8} {proc_id:<10}")
 
-                # Get log file if process is running
-                if info["running"] and info["process_id"]:
-                    log_file = self.process.get_process_log_file(info["process_id"])
-                    if log_file:
-                        log_files.append(f"  {launch_type}: {log_file}")
+            # Get log file if process is running
+            if info["running"] and info["process_id"]:
+                log_file = self.process.get_process_log_file(info["process_id"])
+                if log_file:
+                    log_files.append(f"  {launch_type}: {log_file}")
 
-            formatted_output = f"{header}\n{separator}\n" + "\n".join(rows)
+        formatted_output = f"{header}\n{separator}\n" + "\n".join(rows)
 
-            if log_files:
-                formatted_output += "\n\nLog files:\n" + "\n".join(log_files)
+        if log_files:
+            formatted_output += "\n\nLog files:\n" + "\n".join(log_files)
 
-            return CommandResponse(True, formatted_output)
+        return CommandResponse(True, formatted_output)
 
     def launch_doctor(self) -> CommandResponse:
         """Diagnose launch process conflicts and suggest fixes"""
         import subprocess
-        import re
 
         issues = []
         suggestions = []
@@ -179,7 +184,7 @@ class RobotController:
         launch_types = {
             "nav": ["navigation_launch", "nav2_bringup"],
             "slam": ["slam_toolbox", "online_async_launch"],
-            "map": ["nav2_map_server", "map_server"]
+            "map": ["nav2_map_server", "map_server"],
         }
 
         external_processes = {}
@@ -190,10 +195,18 @@ class RobotController:
             for pattern in patterns:
                 try:
                     # Find processes matching pattern
-                    result = subprocess.run(['pgrep', '-f', pattern],
-                                          capture_output=True, text=True)
+                    result = subprocess.run(
+                        ["pgrep", "-f", pattern],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
                     if result.returncode == 0:
-                        pids = [int(pid.strip()) for pid in result.stdout.split() if pid.strip()]
+                        pids = [
+                            int(pid.strip())
+                            for pid in result.stdout.split()
+                            if pid.strip()
+                        ]
 
                         # Filter out our tracked processes
                         tracked_pid = None
@@ -216,34 +229,57 @@ class RobotController:
 
             if external_pids:
                 if is_tracked_running:
-                    issues.append(f"Multiple {launch_type} processes detected: "
-                                f"tracked PID {tracked.get('pid')} + external PIDs {external_pids}")
-                    suggestions.append(f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes")
+                    issues.append(
+                        f"Multiple {launch_type} processes detected: "
+                        f"tracked PID {tracked.get('pid')} + external PIDs {external_pids}"
+                    )
+                    suggestions.append(
+                        f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes"
+                    )
                 else:
-                    issues.append(f"External {launch_type} processes detected: PIDs {external_pids}")
-                    suggestions.append(f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes")
+                    issues.append(
+                        f"External {launch_type} processes detected: PIDs {external_pids}"
+                    )
+                    suggestions.append(
+                        f"launch kill-all {launch_type}  # Kill ALL {launch_type} processes"
+                    )
 
         # Check for orphaned tracked processes
         for launch_type, status in tracked_status.items():
             if status.get("process_id") and not status.get("running"):
-                issues.append(f"Orphaned {launch_type} process tracking (process ended but still tracked)")
-                suggestions.append(f"launch status  # Check current status and clear stale tracking")
+                issues.append(
+                    f"Orphaned {launch_type} process tracking (process ended but still tracked)"
+                )
+                suggestions.append(
+                    "launch status  # Check current status and clear stale tracking"
+                )
 
         # Check for stale processes (only if not already detected)
         if "nav" not in external_processes:
             try:
-                result = subprocess.run(['pgrep', '-f', 'ros2.*launch.*navigation_launch'],
-                                      capture_output=True, text=True)
-                stale_pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
+                result = subprocess.run(
+                    ["pgrep", "-f", "ros2.*launch.*navigation_launch"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                stale_pids = [
+                    pid.strip() for pid in result.stdout.split() if pid.strip()
+                ]
                 if len(stale_pids) > 1:
                     issues.append(f"Multiple navigation launch processes: {stale_pids}")
-                    suggestions.append("launch kill-all nav  # Kill ALL navigation processes")
+                    suggestions.append(
+                        "launch kill-all nav  # Kill ALL navigation processes"
+                    )
             except Exception:
                 pass
 
         # Format output
         if not issues:
-            return CommandResponse(True, "DIAGNOSIS: No launch conflicts detected. All systems appear healthy.")
+            return CommandResponse(
+                True,
+                "DIAGNOSIS: No launch conflicts detected. All systems appear healthy.",
+            )
 
         diagnosis = "DIAGNOSIS:\n"
         for issue in issues:
@@ -270,13 +306,16 @@ class RobotController:
             return self._nuclear_ros_cleanup()
 
         if launch_type not in ["nav", "slam", "map"]:
-            return CommandResponse(False, f"Unknown launch type: {launch_type}. Use: nav, slam, map, or * for everything")
+            return CommandResponse(
+                False,
+                f"Unknown launch type: {launch_type}. Use: nav, slam, map, or * for everything",
+            )
 
         # Define process patterns for each launch type
         kill_patterns = {
             "nav": ["navigation_launch", "nav2_bringup"],
             "slam": ["slam_toolbox", "online_async_launch"],
-            "map": ["nav2_map_server", "map_server"]
+            "map": ["nav2_map_server", "map_server"],
         }
 
         patterns = kill_patterns[launch_type]
@@ -294,26 +333,30 @@ class RobotController:
         for pattern in patterns:
             try:
                 # Find PIDs
-                result = subprocess.run(['pgrep', '-f', pattern],
-                                      capture_output=True, text=True)
+                result = subprocess.run(
+                    ["pgrep", "-f", pattern],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
                 if result.returncode == 0:
                     pids = [pid.strip() for pid in result.stdout.split() if pid.strip()]
 
                     # Kill each PID
                     for pid in pids:
                         try:
-                            subprocess.run(['kill', '-TERM', pid], check=True)
+                            subprocess.run(["kill", "-TERM", pid], check=True)
                             killed_pids.append(pid)
                         except subprocess.CalledProcessError:
                             # Try SIGKILL if TERM fails
                             try:
-                                subprocess.run(['kill', '-KILL', pid], check=True)
+                                subprocess.run(["kill", "-KILL", pid], check=True)
                                 killed_pids.append(pid)
                             except subprocess.CalledProcessError:
                                 errors.append(f"Failed to kill PID {pid}")
 
             except Exception as e:
-                errors.append(f"Error finding {pattern} processes: {str(e)}")
+                errors.append(f"Error finding {pattern} processes: {e!s}")
 
         # Clear our tracking
         if launch_type in self.launch_process_ids:
@@ -321,7 +364,9 @@ class RobotController:
 
         # Format response
         if killed_pids:
-            message = f"Killed {len(killed_pids)} {launch_type} processes: {killed_pids}"
+            message = (
+                f"Killed {len(killed_pids)} {launch_type} processes: {killed_pids}"
+            )
             if tracked_killed:
                 message += " (including tracked process)"
         elif tracked_killed:
@@ -347,7 +392,7 @@ class RobotController:
             ["pkill", "-f", "ros2"],
             ["pkill", "-f", "_ros"],
             ["pkill", "-f", "rcl"],
-            ["pkill", "-f", "launch"]
+            ["pkill", "-f", "launch"],
         ]
 
         results = []
@@ -357,15 +402,21 @@ class RobotController:
             try:
                 # Get PIDs before killing to count them
                 pattern = cmd[2]
-                pid_result = subprocess.run(['pgrep', '-f', pattern],
-                                          capture_output=True, text=True)
+                pid_result = subprocess.run(
+                    ["pgrep", "-f", pattern],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
                 if pid_result.returncode == 0:
                     pid_count = len([p for p in pid_result.stdout.split() if p.strip()])
                 else:
                     pid_count = 0
 
                 # Execute the kill command
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(
+                    cmd, check=False, capture_output=True, text=True
+                )
                 if pid_count > 0:
                     results.append(f"Killed {pid_count} processes matching '{pattern}'")
                     total_killed += pid_count
@@ -373,17 +424,16 @@ class RobotController:
                     results.append(f"No processes found matching '{pattern}'")
 
             except Exception as e:
-                results.append(f"Error with command {' '.join(cmd)}: {str(e)}")
+                results.append(f"Error with command {' '.join(cmd)}: {e!s}")
 
         if total_killed > 0:
             message = f"NUCLEAR CLEANUP: Killed {total_killed} ROS processes total\n"
             message += "\n".join(results)
             message += "\n\nWARNING: All ROS2 processes have been terminated!"
             return CommandResponse(True, message)
-        else:
-            return CommandResponse(True, "No ROS2 processes found to kill")
+        return CommandResponse(True, "No ROS2 processes found to kill")
 
-    def _get_launch_status(self) -> Dict[str, Dict[str, Any]]:
+    def _get_launch_status(self):
         """Get status of all tracked launch processes with PIDs"""
         status = {}
         for launch_type, process_id in self.launch_process_ids.items():
@@ -393,7 +443,7 @@ class RobotController:
                 status[launch_type] = {
                     "running": True,
                     "process_id": process_id,
-                    "pid": pid
+                    "pid": pid,
                 }
             else:
                 # Clean up stale process IDs
@@ -402,11 +452,11 @@ class RobotController:
                 status[launch_type] = {
                     "running": False,
                     "process_id": None,
-                    "pid": None
+                    "pid": None,
                 }
         return status
 
-    def _get_process_status(self) -> Dict[str, Dict[str, Any]]:
+    def _get_process_status(self):
         """Get status of all tracked processes with PIDs - now using launch tracking"""
         return self._get_launch_status()
 
@@ -460,20 +510,22 @@ class RobotController:
 
     def script_circle_stress(self, diameter: float) -> CommandResponse:
         self.calibration.run_circle_stress(diameter)
-        return CommandResponse(True, f"Circle stress test with {diameter}m diameter completed")
+        return CommandResponse(
+            True, f"Circle stress test with {diameter}m diameter completed"
+        )
 
     def set_variable(self, name: str, value: str) -> CommandResponse:
         self.config.set_variable(name, value)
         stored_value = self.config.get_variable(name)
-        return CommandResponse(True, f"Set {name} = {stored_value} ({type(stored_value).__name__})")
+        return CommandResponse(
+            True, f"Set {name} = {stored_value} ({type(stored_value).__name__})"
+        )
 
     def get_variable(self, name: str) -> CommandResponse:
         value = self.config.get_variable(name)
-        return CommandResponse(True, f"{name} = {value} ({type(value).__name__})", {"value": value})
-
-    def get_all_variables(self) -> CommandResponse:
-        variables = self.config.get_all_variables()
-        return CommandResponse(True, "Configuration variables", {"variables": variables})
+        return CommandResponse(
+            True, f"{name} = {value} ({type(value).__name__})", {"value": value}
+        )
 
     def get_topics(self) -> CommandResponse:
         topics = self.movement.get_topics()
@@ -483,21 +535,19 @@ class RobotController:
             topic_list.append({"name": topic_name, "types": type_names})
         return CommandResponse(True, "Active ROS topics", {"topics": topic_list})
 
-    def get_robot_status(self) -> CommandResponse:
-        status = self.movement.get_status()
-        return CommandResponse(True, "Robot status", {"status": status})
-
-
     def save_current_map(self, filename: str) -> CommandResponse:
         if not self.launch_process_ids.get("map"):
-            return CommandResponse(False, "Map server is not running. Start it with: launch start map")
+            return CommandResponse(
+                False, "Map server is not running. Start it with: launch start map"
+            )
 
         self.config.ensure_subdirs()
         success = self.process.save_map_via_service(filename)
         if success:
-            return CommandResponse(True, f"Map saved to {self.config.get_maps_dir() / filename}")
-        else:
-            return CommandResponse(False, "Failed to save map via service call")
+            return CommandResponse(
+                True, f"Map saved to {self.config.get_maps_dir() / filename}"
+            )
+        return CommandResponse(False, "Failed to save map via service call")
 
     def list_maps(self) -> CommandResponse:
         self.config.ensure_subdirs()
@@ -510,23 +560,30 @@ class RobotController:
         map_names = [f.stem for f in yaml_files]
         map_names.sort()
 
-        return CommandResponse(True, f"Found {len(map_names)} maps", {"maps": map_names})
-
+        return CommandResponse(
+            True, f"Found {len(map_names)} maps", {"maps": map_names}
+        )
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
         return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)
 
     def launch_file(self, package: str, launch_file: str, **kwargs) -> CommandResponse:
         process_id = self.process.launch_file(package, launch_file, **kwargs)
-        return CommandResponse(True, f"Launched {package}/{launch_file}", {"process_id": process_id})
+        return CommandResponse(
+            True, f"Launched {package}/{launch_file}", {"process_id": process_id}
+        )
 
     def run_ros_node(self, package: str, executable: str, **kwargs) -> CommandResponse:
         process_id = self.process.run_ros_node(package, executable, **kwargs)
-        return CommandResponse(True, f"Started {package}/{executable}", {"process_id": process_id})
+        return CommandResponse(
+            True, f"Started {package}/{executable}", {"process_id": process_id}
+        )
 
     def launch_command(self, command: str) -> CommandResponse:
         process_id = self.process.launch_command(command)
-        return CommandResponse(True, f"Launched command: {command}", {"process_id": process_id})
+        return CommandResponse(
+            True, f"Launched command: {command}", {"process_id": process_id}
+        )
 
     def kill_process(self, process_id: str) -> CommandResponse:
         """Kill managed process"""
@@ -540,30 +597,38 @@ class RobotController:
             return CommandResponse(True, f"Killed process {process_id}")
         return CommandResponse(False, f"Failed to kill process {process_id}")
 
-
-
     def get_active_processes(self) -> CommandResponse:
         processes = self.process.get_running_processes()
         return CommandResponse(True, "Active processes", {"processes": processes})
 
-    def get_process_output(self, process_id: str, lines: Optional[int] = None) -> CommandResponse:
+    def get_process_output(
+        self, process_id: str, lines: int | None = None
+    ) -> CommandResponse:
         output = self.process.get_process_output(process_id, lines)
-        return CommandResponse(True, f"Output for process {process_id}", {"output": output})
+        return CommandResponse(
+            True, f"Output for process {process_id}", {"output": output}
+        )
 
     def is_process_running(self, process_id: str) -> CommandResponse:
         running = self.process.is_process_running(process_id)
         status = "running" if running else "stopped"
-        return CommandResponse(True, f"Process {process_id} is {status}", {"running": running})
+        return CommandResponse(
+            True, f"Process {process_id} is {status}", {"running": running}
+        )
 
     def move_continuous(self, linear: float, angular: float) -> CommandResponse:
         self.movement.move_continuous(linear, angular)
-        return CommandResponse(True, f"Continuous movement: linear={linear}, angular={angular}")
+        return CommandResponse(
+            True, f"Continuous movement: linear={linear}, angular={angular}"
+        )
 
     def get_current_position(self) -> CommandResponse:
         position = self.movement.get_current_position()
         if position:
             x, y = position
-            return CommandResponse(True, f"Position: x={x:.3f}, y={y:.3f}", {"x": x, "y": y})
+            return CommandResponse(
+                True, f"Position: x={x:.3f}, y={y:.3f}", {"x": x, "y": y}
+            )
         return CommandResponse(False, "No position data available")
 
     def turn_radians(self, radians: float) -> CommandResponse:
@@ -574,29 +639,34 @@ class RobotController:
         return self.movement.turn_degrees(degrees)
 
     def get_robot_status(self) -> CommandResponse:
-        linear_speed = self.config.get_variable('linear_speed')
-        angular_speed = self.config.get_variable('angular_speed')
+        linear_speed = self.config.get_variable("linear_speed")
+        angular_speed = self.config.get_variable("angular_speed")
 
         # Check node health
         nodes_status = {
-            "movement_api": "running" if hasattr(self, 'movement') and self.movement else "not available",
-            "calibration_api": "running" if hasattr(self, 'calibration') and self.calibration else "not available",
-            "process_api": "running" if hasattr(self, 'process') and self.process else "not available"
+            "movement_api": "running"
+            if hasattr(self, "movement") and self.movement
+            else "not available",
+            "calibration_api": "running"
+            if hasattr(self, "calibration") and self.calibration
+            else "not available",
+            "process_api": "running"
+            if hasattr(self, "process") and self.process
+            else "not available",
         }
 
         status = {
-            "speeds": {
-                "linear": linear_speed,
-                "angular": angular_speed
-            },
+            "speeds": {"linear": linear_speed, "angular": angular_speed},
             "processes": self._get_process_status(),
-            "nodes": nodes_status
+            "nodes": nodes_status,
         }
         return CommandResponse(True, "Robot status retrieved", {"status": status})
 
     def get_all_variables(self) -> CommandResponse:
         variables = self.config.get_all_variables()
-        return CommandResponse(True, "All variables retrieved", {"variables": variables})
+        return CommandResponse(
+            True, "All variables retrieved", {"variables": variables}
+        )
 
     def list_topics(self) -> CommandResponse:
         try:
@@ -604,7 +674,7 @@ class RobotController:
             topic_list = [name for name, _ in topics]
             return CommandResponse(True, "Active ROS topics", {"topics": topic_list})
         except Exception as e:
-            return CommandResponse(False, f"Failed to list topics: {str(e)}")
+            return CommandResponse(False, f"Failed to list topics: {e!s}")
 
     def save_config(self):
         """Save configuration to file"""
@@ -614,5 +684,5 @@ class RobotController:
         """Clean up all resources"""
         self.process.destroy_node()
         self.movement.destroy_node()
-        if hasattr(self.calibration, 'destroy_node'):
+        if hasattr(self.calibration, "destroy_node"):
             self.calibration.destroy_node()
