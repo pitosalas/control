@@ -11,3 +11,23 @@ ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGrap
 1) ros2 launch slam_toolbox online_async_launch.py slam_params_file:=$PWD/mapper_params_lifelong.yaml
 
 ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGraph "{filename: '/home/pitosalas/.control/maps/production'}"
+
+ros2 service call /slam_toolbox/load_map_from_file slam_toolbox/srv/LoadMapFromFile "{filename: '/home/pitosalas/.control/maps/production'}"
+
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "name:
+  data: 'my_map'"
+
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{ name: {
+  data: '/home/pitosalas/.control/maps/productionx' }} "
+
+
+ros2 run nav2_map_server map_saver_cli -f my_map
+
+ros2 run nav2_map_server map_saver_cli -f /home/pitosalas/.control/maps/production
+
+- why is amcl running when I am doing slam_toolbox + slam? Who is launching it. Maybe it should not be launched?
+
+LATEST
+
+ros2 launch linorobot2_navigation slam.launch.py
+ros2 launch linorobot2_navigation navigation.launch.py map:=/home/pitosalas/.control/maps/productio
