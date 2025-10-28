@@ -9,11 +9,51 @@ from ..commands.config_manager import ConfigManager
 class ClickCLI:
     """Click-based CLI that uses the CommandDispatcher."""
 
+    # Centralized command/subcommand abbreviations
+    # Format: 'full_name': 'abbreviation'
+    ABBREVIATIONS = {
+        # Movement subcommands
+        'forward': 'fwd',
+        'backward': 'bak',
+        # Turn subcommands
+        'clockwise': 'clk',
+        'counterclockwise': 'ccw',
+        # Robot subcommands
+        'stop': 'stp',
+        'status': 'sts',
+        # Launch subcommands
+        'list': 'lst',
+        'start': 'sta',
+        'kill': 'kil',
+        # System subcommands
+        'topics': 'top',
+        # Script subcommands
+        'square': 'sqr',
+        'stress_test': 'str',
+    }
+
     def __init__(self):
         self.config_manager = ConfigManager()
         self.robot_controller = RobotController(self.config_manager)
         self.dispatcher = CommandDispatcher(self.robot_controller)
         self.cli = self._create_cli()
+
+    def _add_command_with_abbrev(self, group, command_func, full_name):
+        """
+        Helper function to add a command with both full name and abbreviation.
+
+        Args:
+            group: Click group to add command to
+            command_func: The command function to register
+            full_name: Full name of the command
+        """
+        # Add with full name
+        group.add_command(command_func, name=full_name)
+
+        # Add with abbreviation if one exists
+        if full_name in self.ABBREVIATIONS:
+            abbrev = self.ABBREVIATIONS[full_name]
+            group.add_command(command_func, name=abbrev)
 
     def _create_cli(self):
         """Create the Click CLI with dispatcher integration."""
@@ -89,8 +129,7 @@ class ClickCLI:
             result = self.dispatcher.execute("move.forward", {"meters": meters})
             self._handle_result(result)
 
-        move.add_command(forward, name='forward')
-        move.add_command(forward, name='fwd')
+        self._add_command_with_abbrev(move, forward, 'forward')
 
         @click.command()
         @click.argument('meters', type=float)
@@ -99,8 +138,7 @@ class ClickCLI:
             result = self.dispatcher.execute("move.backward", {"meters": meters})
             self._handle_result(result)
 
-        move.add_command(backward, name='backward')
-        move.add_command(backward, name='bak')
+        self._add_command_with_abbrev(move, backward, 'backward')
 
         # Turn commands (full: turn, abbr: trn)
         @cli.group(context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': False})
@@ -136,8 +174,7 @@ class ClickCLI:
             result = self.dispatcher.execute("turn.clockwise", {"degrees": degrees})
             self._handle_result(result)
 
-        turn.add_command(clockwise, name='clockwise')
-        turn.add_command(clockwise, name='clk')
+        self._add_command_with_abbrev(turn, clockwise, 'clockwise')
 
         @click.command()
         @click.argument('degrees', type=float)
@@ -146,8 +183,7 @@ class ClickCLI:
             result = self.dispatcher.execute("turn.counterclockwise", {"degrees": degrees})
             self._handle_result(result)
 
-        turn.add_command(counterclockwise, name='counterclockwise')
-        turn.add_command(counterclockwise, name='ccw')
+        self._add_command_with_abbrev(turn, counterclockwise, 'counterclockwise')
 
         # Robot control commands (full: robot, abbr: rob)
         @cli.group()
@@ -161,8 +197,7 @@ class ClickCLI:
             result = self.dispatcher.execute("robot.stop", {})
             self._handle_result(result)
 
-        robot.add_command(stop, name='stop')
-        robot.add_command(stop, name='stp')
+        self._add_command_with_abbrev(robot, stop, 'stop')
 
         @click.command()
         def status():
@@ -170,8 +205,7 @@ class ClickCLI:
             result = self.dispatcher.execute("robot.status", {})
             self._handle_result(result)
 
-        robot.add_command(status, name='status')
-        robot.add_command(status, name='sts')
+        self._add_command_with_abbrev(robot, status, 'status')
 
         # Launch commands (full: launch, abbr: lch)
         @cli.group()
@@ -185,8 +219,7 @@ class ClickCLI:
             result = self.dispatcher.execute("launch.list", {})
             self._handle_result(result)
 
-        launch.add_command(launch_list, name='list')
-        launch.add_command(launch_list, name='lst')
+        self._add_command_with_abbrev(launch, launch_list, 'list')
 
         @click.command()
         @click.argument('launch_type')
@@ -202,8 +235,7 @@ class ClickCLI:
             result = self.dispatcher.execute("launch.start", params)
             self._handle_result(result)
 
-        launch.add_command(launch_start, name='start')
-        launch.add_command(launch_start, name='sta')
+        self._add_command_with_abbrev(launch, launch_start, 'start')
 
         @click.command()
         @click.argument('launch_type')
@@ -212,8 +244,7 @@ class ClickCLI:
             result = self.dispatcher.execute("launch.kill", {"launch_type": launch_type})
             self._handle_result(result)
 
-        launch.add_command(launch_kill, name='kill')
-        launch.add_command(launch_kill, name='kil')
+        self._add_command_with_abbrev(launch, launch_kill, 'kill')
 
         @click.command()
         @click.argument('launch_type', required=False)
@@ -225,8 +256,7 @@ class ClickCLI:
             result = self.dispatcher.execute("launch.status", params)
             self._handle_result(result)
 
-        launch.add_command(launch_status, name='status')
-        launch.add_command(launch_status, name='sts')
+        self._add_command_with_abbrev(launch, launch_status, 'status')
 
         @launch.command()
         def doctor():
@@ -293,8 +323,7 @@ class ClickCLI:
             result = self.dispatcher.execute("config.list", {})
             self._handle_result(result)
 
-        config.add_command(config_list, name='list')
-        config.add_command(config_list, name='lst')
+        self._add_command_with_abbrev(config, config_list, 'list')
 
         # System commands (full: system, abbr: sys)
         @cli.group()
@@ -308,8 +337,7 @@ class ClickCLI:
             result = self.dispatcher.execute("system.topics", {})
             self._handle_result(result)
 
-        system.add_command(system_topics, name='topics')
-        system.add_command(system_topics, name='top')
+        self._add_command_with_abbrev(system, system_topics, 'topics')
 
         # Script commands (full: script, abbr: scr)
         @cli.group()
@@ -324,8 +352,7 @@ class ClickCLI:
             result = self.dispatcher.execute("script.square", {"meters": meters})
             self._handle_result(result)
 
-        script.add_command(script_square, name='square')
-        script.add_command(script_square, name='sqr')
+        self._add_command_with_abbrev(script, script_square, 'square')
 
         @click.command()
         def script_stress_test():
@@ -333,8 +360,7 @@ class ClickCLI:
             result = self.dispatcher.execute("script.stress_test", {})
             self._handle_result(result)
 
-        script.add_command(script_stress_test, name='stress_test')
-        script.add_command(script_stress_test, name='str')
+        self._add_command_with_abbrev(script, script_stress_test, 'stress_test')
 
         return cli
 
@@ -345,9 +371,8 @@ class ClickCLI:
         # Group commands by their parent group
         groups = {}
 
-        # Define abbreviations to skip
-        abbreviations = {'fwd', 'bak', 'clk', 'ccw', 'sqr', 'str', 'stp', 'sts',
-                        'lst', 'sta', 'kil', 'top', 'deg', 'rad', 'dis', 'tim', 'doc'}
+        # Get set of all abbreviations from centralized dict
+        abbreviations = set(self.ABBREVIATIONS.values())
 
         for name, command in cli.commands.items():
             if isinstance(command, click.Group):
@@ -400,9 +425,8 @@ class ClickCLI:
 
     def _generate_specific_help(self, cli, command_name):
         """Generate help for a specific command or command group."""
-        # Define abbreviations to skip
-        abbreviations = {'fwd', 'bak', 'clk', 'ccw', 'sqr', 'str', 'stp', 'sts',
-                        'lst', 'sta', 'kil', 'top', 'deg', 'rad', 'dis', 'tim', 'doc'}
+        # Get set of all abbreviations from centralized dict
+        abbreviations = set(self.ABBREVIATIONS.values())
 
         # Check if it's a command group
         if command_name in cli.commands:
