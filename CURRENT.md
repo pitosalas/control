@@ -146,3 +146,19 @@ config list
 - allow all commands to be abbreviated to three letters (maybe just make them three letters)
 - change the way launch works to have a series of "canned" or parameterized launch commands that come directly from the config
 - change the way the map command works to simply include commands like map save to save both kinds of maps
+- show me how to try the eew parser to see if I like it
+- no need to have "default defaults" ... if its not in the config than give an error
+- create a new script "circle_stress" that takes one param which is the diameter of the circle
+- rename old one to "rotate_stress"
+- remove the attempt to print out voltage
+- when the command first starts capture the time and print elapsed time so far every 10
+- create a new command "do" that allows me to choose from a preset list of
+ ros2 commands. Each command will have a template which might have a variable in it, and it will have a name. So for example:
+
+ nav -> "ros2 launch linorobot2_navigation slam rviz:={rviz}"
+
+ with the command
+
+ do nav rviz true
+
+ 
