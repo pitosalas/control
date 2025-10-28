@@ -10,7 +10,8 @@ class ConfigManager:
         "linear_speed": 0.3,
         "angular_speed": 0.4,
         "log_dir": "logs",
-        "maps_dir": "maps"
+        "maps_dir": "maps",
+        "dry_run": False
     }
 
     def __init__(self, config_file: str = None):
@@ -25,6 +26,7 @@ class ConfigManager:
         self.variables: Dict[str, Any] = {}
         self.load_config()
         self.ensure_subdirs()
+        self._detect_test_environment()
 
     def load_config(self):
         try:
@@ -106,3 +108,13 @@ class ConfigManager:
         else:
             # Resolve relative to ~/.control/ directory
             return (self.control_dir / path).resolve()
+
+    def _detect_test_environment(self):
+        """Automatically enable dry_run mode when running in test environment."""
+        import sys
+        if 'pytest' in sys.modules or 'unittest' in sys.modules:
+            self.variables['dry_run'] = True
+
+    def is_dry_run(self) -> bool:
+        """Check if dry_run mode is enabled."""
+        return self.variables.get('dry_run', False)

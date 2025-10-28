@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import math
 import time
+import rclpy
 
 from ..commands.config_manager import ConfigManager
 from .base_api import BaseApi
@@ -16,16 +17,16 @@ class CalibrationApi(BaseApi):
         super().__init__("calibration_api", config_manager)
         self.movement = movement_api
 
-    def calibrate_square(self, side_length: float):
-        """Move robot in a square pattern for calibration."""
-        self.log_info(f"Starting square calibration with {side_length}m sides")
+    def run_square_pattern(self, side_length: float):
+        """Move robot in a square pattern."""
+        self.log_info(f"Starting square pattern with {side_length}m sides")
 
         for i in range(4):
             self.log_info(f"Square side {i + 1}/4")
             self.movement.move_dist(side_length)
             self.movement.turn_amount(math.pi / 2)
 
-        self.log_info("Square calibration completed")
+        self.log_info("Square pattern completed")
 
     def calibrate_circle(self, radius: float, angular_speed: float):
         circumference = 2 * math.pi * radius
@@ -67,3 +68,39 @@ class CalibrationApi(BaseApi):
             self.movement.turn_amount(angle)
 
         self.log_info("Movement speed tests completed")
+
+    def run_stress_test(self):
+        """Run continuous stress test: rotate in place, measure voltage between rotations."""
+        self.log_info("Starting stress test - Press Ctrl+C to stop")
+
+        slow_angular = 0.2
+        full_rotation = 2 * math.pi
+        num_rotations = 10
+
+        cycle = 0
+        try:
+            while rclpy.ok():
+                cycle += 1
+
+                voltage = self.movement.get_voltage()
+                if voltage is not None:
+                    print(f"Cycle {cycle}: Battery voltage = {voltage:.2f}V")
+                    self.log_info(f"Cycle {cycle}: Battery voltage = {voltage:.2f}V")
+                else:
+                    print(f"Cycle {cycle}: Battery voltage = N/A (no data)")
+                    self.log_info(f"Cycle {cycle}: Battery voltage unavailable")
+
+                self.log_info(f"Starting {num_rotations} rotations...")
+                for rotation in range(num_rotations):
+                    self.log_info(f"Rotation {rotation + 1}/{num_rotations}")
+                    time_for_rotation = full_rotation / slow_angular
+                    self.movement.cmd_vel_helper(0.0, slow_angular, time_for_rotation)
+
+                self.log_info(f"Completed {num_rotations} rotations")
+
+        except KeyboardInterrupt:
+            self.log_info("Stress test stopped by user")
+            self.movement.stop()
+            print("\nStress test stopped")
+
+        self.movement.stop()

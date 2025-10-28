@@ -62,17 +62,22 @@ class ClickCLI:
                 result = self.dispatcher.execute("config.get", {"name": name})
             self._handle_result(result)
 
-        # Movement commands
-        @cli.group(context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': True})
+        # Movement commands (full: move, abbr: mov)
+        @cli.group(context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': False})
         def move():
             """Movement commands"""
             pass
 
+        @cli.group(name='mov', context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': False})
+        def mov():
+            """Movement commands (abbreviated)"""
+            pass
+
         @move.command()
-        @click.argument('distance', type=float)
-        def dist(distance):
+        @click.option('--meters', '-m', type=float, required=True, help='Distance in meters (negative = backward)')
+        def dist(meters):
             """Move robot a specific distance in meters"""
-            result = self.dispatcher.execute("move.distance", {"distance": distance})
+            result = self.dispatcher.execute("move.distance", {"distance": meters})
             self._handle_result(result)
 
         @move.command()
@@ -82,10 +87,51 @@ class ClickCLI:
             result = self.dispatcher.execute("move.time", {"seconds": seconds})
             self._handle_result(result)
 
-        # Turn commands
-        @cli.group(context_settings={'allow_interspersed_args': False})
+        @move.command()
+        @click.argument('meters', type=float)
+        def forward(meters):
+            """Move robot forward by distance in meters"""
+            result = self.dispatcher.execute("move.forward", {"meters": meters})
+            self._handle_result(result)
+
+        @move.command()
+        @click.argument('meters', type=float)
+        def backward(meters):
+            """Move robot backward by distance in meters"""
+            result = self.dispatcher.execute("move.backward", {"meters": meters})
+            self._handle_result(result)
+
+        # Abbreviated movement commands
+        @mov.command(name='fwd')
+        @click.argument('meters', type=float)
+        def mov_forward(meters):
+            """Move robot forward (abbr)"""
+            result = self.dispatcher.execute("move.forward", {"meters": meters})
+            self._handle_result(result)
+
+        @mov.command(name='bak')
+        @click.argument('meters', type=float)
+        def mov_backward(meters):
+            """Move robot backward (abbr)"""
+            result = self.dispatcher.execute("move.backward", {"meters": meters})
+            self._handle_result(result)
+
+        @mov.command(name='tim')
+        @click.argument('seconds', type=float)
+        def mov_time(seconds):
+            """Move for time (abbr)"""
+            result = self.dispatcher.execute("move.time", {"seconds": seconds})
+            self._handle_result(result)
+
+        # Turn commands (full: turn, abbr: trn)
+        @cli.group(context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': False})
         def turn():
             """Turn commands"""
+            pass
+
+        @cli.group(name='trn', context_settings={'allow_interspersed_args': False, 'ignore_unknown_options': False})
+        def trn():
+            """Turn commands (abbreviated)"""
             pass
 
         @turn.command()
@@ -96,20 +142,56 @@ class ClickCLI:
             self._handle_result(result)
 
         @turn.command()
-        @click.argument('radians', type=float)
+        @click.option('--radians', '-r', type=float, required=True, help='Angle in radians (negative = clockwise)')
         def radians(radians):
             """Turn robot by specified angle in radians"""
             result = self.dispatcher.execute("turn.radians", {"radians": radians})
             self._handle_result(result)
 
         @turn.command()
-        @click.argument('degrees', type=float)
+        @click.option('--degrees', '-d', type=float, required=True, help='Angle in degrees (negative = clockwise)')
         def degrees(degrees):
             """Turn robot by specified angle in degrees"""
             result = self.dispatcher.execute("turn.degrees", {"degrees": degrees})
             self._handle_result(result)
 
-        # Robot control commands
+        @turn.command()
+        @click.argument('degrees', type=float)
+        def clockwise(degrees):
+            """Turn robot clockwise by angle in degrees"""
+            result = self.dispatcher.execute("turn.clockwise", {"degrees": degrees})
+            self._handle_result(result)
+
+        @turn.command()
+        @click.argument('degrees', type=float)
+        def counterclockwise(degrees):
+            """Turn robot counterclockwise by angle in degrees"""
+            result = self.dispatcher.execute("turn.counterclockwise", {"degrees": degrees})
+            self._handle_result(result)
+
+        # Abbreviated turn commands
+        @trn.command(name='clk')
+        @click.argument('degrees', type=float)
+        def trn_clockwise(degrees):
+            """Turn clockwise (abbr)"""
+            result = self.dispatcher.execute("turn.clockwise", {"degrees": degrees})
+            self._handle_result(result)
+
+        @trn.command(name='ccw')
+        @click.argument('degrees', type=float)
+        def trn_counterclockwise(degrees):
+            """Turn counterclockwise (abbr)"""
+            result = self.dispatcher.execute("turn.counterclockwise", {"degrees": degrees})
+            self._handle_result(result)
+
+        @trn.command(name='tim')
+        @click.argument('seconds', type=float)
+        def trn_time(seconds):
+            """Turn for time (abbr)"""
+            result = self.dispatcher.execute("turn.time", {"seconds": seconds})
+            self._handle_result(result)
+
+        # Robot control commands (full: robot, abbr: rob)
         @cli.group()
         def robot():
             """Robot control commands"""
@@ -127,7 +209,25 @@ class ClickCLI:
             result = self.dispatcher.execute("robot.status", {})
             self._handle_result(result)
 
-        # Launch commands
+        # Abbreviated robot commands
+        @cli.group(name='rob')
+        def rob():
+            """Robot commands (abbreviated)"""
+            pass
+
+        @rob.command(name='stp')
+        def rob_stop():
+            """Stop robot (abbr)"""
+            result = self.dispatcher.execute("robot.stop", {})
+            self._handle_result(result)
+
+        @rob.command(name='sts')
+        def rob_status():
+            """Robot status (abbr)"""
+            result = self.dispatcher.execute("robot.status", {})
+            self._handle_result(result)
+
+        # Launch commands (full: launch, abbr: lch)
         @cli.group()
         def launch():
             """Launch commands"""
@@ -183,7 +283,50 @@ class ClickCLI:
             result = self.dispatcher.execute("launch.kill-all", {"launch_type": launch_type})
             self._handle_result(result)
 
-        # Map commands
+        # Abbreviated launch commands
+        @cli.group(name='lch')
+        def lch():
+            """Launch commands (abbreviated)"""
+            pass
+
+        @lch.command(name='sta')
+        @click.argument('launch_type')
+        @click.option('--sim-time', is_flag=True, help='Use simulation time')
+        @click.option('--map-name', help='Map name for map launch type')
+        def lch_start(launch_type, sim_time, map_name):
+            """Start launch (abbr)"""
+            params = {"launch_type": launch_type}
+            if sim_time:
+                params["use_sim_time"] = sim_time
+            if map_name:
+                params["map_name"] = map_name
+            result = self.dispatcher.execute("launch.start", params)
+            self._handle_result(result)
+
+        @lch.command(name='kil')
+        @click.argument('launch_type')
+        def lch_kill(launch_type):
+            """Kill launch (abbr)"""
+            result = self.dispatcher.execute("launch.kill", {"launch_type": launch_type})
+            self._handle_result(result)
+
+        @lch.command(name='lst')
+        def lch_list():
+            """List launches (abbr)"""
+            result = self.dispatcher.execute("launch.list", {})
+            self._handle_result(result)
+
+        @lch.command(name='sts')
+        @click.argument('launch_type', required=False)
+        def lch_status(launch_type):
+            """Launch status (abbr)"""
+            params = {}
+            if launch_type:
+                params["launch_type"] = launch_type
+            result = self.dispatcher.execute("launch.status", params)
+            self._handle_result(result)
+
+        # Map commands (full: map, abbr: map - already 3 letters)
         @cli.group()
         def map():
             """Map commands"""
@@ -204,7 +347,7 @@ class ClickCLI:
 
 
 
-        # Configuration commands
+        # Configuration commands (full: config, abbr: cfg)
         @cli.group()
         def config():
             """Configuration commands"""
@@ -231,7 +374,34 @@ class ClickCLI:
             result = self.dispatcher.execute("config.list", {})
             self._handle_result(result)
 
-        # System commands
+        # Abbreviated config commands
+        @cli.group(name='cfg')
+        def cfg():
+            """Config commands (abbreviated)"""
+            pass
+
+        @cfg.command(name='set')
+        @click.argument('name')
+        @click.argument('value')
+        def cfg_set(name, value):
+            """Set config (abbr)"""
+            result = self.dispatcher.execute("config.set", {"name": name, "value": value})
+            self._handle_result(result)
+
+        @cfg.command(name='get')
+        @click.argument('name')
+        def cfg_get(name):
+            """Get config (abbr)"""
+            result = self.dispatcher.execute("config.get", {"name": name})
+            self._handle_result(result)
+
+        @cfg.command(name='lst')
+        def cfg_list():
+            """List config (abbr)"""
+            result = self.dispatcher.execute("config.list", {})
+            self._handle_result(result)
+
+        # System commands (full: system, abbr: sys)
         @cli.group()
         def system():
             """System commands"""
@@ -243,17 +413,54 @@ class ClickCLI:
             result = self.dispatcher.execute("system.topics", {})
             self._handle_result(result)
 
-        # Calibration commands
-        @cli.group()
-        def calibrate():
-            """Calibration commands"""
+        # Abbreviated system commands
+        @cli.group(name='sys')
+        def sys():
+            """System commands (abbreviated)"""
             pass
 
-        @calibrate.command()
-        @click.argument('meters', type=float)
+        @sys.command(name='top')
+        def sys_topics():
+            """List topics (abbr)"""
+            result = self.dispatcher.execute("system.topics", {})
+            self._handle_result(result)
+
+        # Script commands (full: script, abbr: scr)
+        @cli.group()
+        def script():
+            """Script commands"""
+            pass
+
+        @script.command()
+        @click.option('--meters', '-m', type=float, required=True, help='Size of square in meters (negative = reverse)')
         def square(meters):
-            """Perform square calibration pattern"""
-            result = self.dispatcher.execute("calibrate.square", {"meters": meters})
+            """Execute square movement pattern"""
+            result = self.dispatcher.execute("script.square", {"meters": meters})
+            self._handle_result(result)
+
+        @script.command()
+        def stress_test():
+            """Run continuous stress test with voltage monitoring"""
+            result = self.dispatcher.execute("script.stress_test", {})
+            self._handle_result(result)
+
+        # Abbreviated script commands
+        @cli.group(name='scr')
+        def scr():
+            """Script commands (abbreviated)"""
+            pass
+
+        @scr.command(name='sqr')
+        @click.option('--meters', '-m', type=float, required=True, help='Size of square in meters')
+        def scr_square(meters):
+            """Execute square (abbr)"""
+            result = self.dispatcher.execute("script.square", {"meters": meters})
+            self._handle_result(result)
+
+        @scr.command(name='str')
+        def scr_stress_test():
+            """Stress test (abbr)"""
+            result = self.dispatcher.execute("script.stress_test", {})
             self._handle_result(result)
 
         return cli
