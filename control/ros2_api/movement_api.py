@@ -40,6 +40,11 @@ class MovementApi(BaseApi):
 
         self.linear = self.config.get_variable("linear_speed")
         self.angular = self.config.get_variable("angular_speed")
+        self.angular_max = self.config.get_variable("angular_max")
+        self.angular_min = self.config.get_variable("angular_min")
+        self.linear_min = self.config.get_variable("linear_min")
+        self.linear_max = self.config.get_variable("linear_max")
+
         self.current_pose = None
         self.current_voltage = None
 
@@ -137,7 +142,9 @@ class MovementApi(BaseApi):
             return
 
         if self.config.is_dry_run():
-            self.log_info(f"DRY RUN: Would move linear={linear}, angular={angular} for {seconds}s")
+            self.log_info(
+                f"DRY RUN: Would move linear={linear}, angular={angular} for {seconds}s"
+            )
             return
 
         twist = Twist()

@@ -69,9 +69,9 @@ class CalibrationApi(BaseApi):
 
         self.log_info("Movement speed tests completed")
 
-    def run_stress_test(self):
-        """Run continuous stress test: rotate in place, measure voltage between rotations."""
-        self.log_info("Starting stress test - Press Ctrl+C to stop")
+    def run_rotate_stress(self):
+        """Run continuous rotation stress test."""
+        self.log_info("Starting rotation stress test - Press Ctrl+C to stop")
 
         # Get rotation speed from config
         slow_angular = self.config.get_variable("stress_test_rotation_speed")
@@ -83,17 +83,20 @@ class CalibrationApi(BaseApi):
         self.log_info(f"Using rotation speed: {slow_angular} rad/s")
 
         cycle = 0
+        start_time = time.time()
+        last_print_time = start_time
+
         try:
             while rclpy.ok():
                 cycle += 1
 
-                voltage = self.movement.get_voltage()
-                if voltage is not None:
-                    print(f"Cycle {cycle}: Battery voltage = {voltage:.2f}V")
-                    self.log_info(f"Cycle {cycle}: Battery voltage = {voltage:.2f}V")
-                else:
-                    print(f"Cycle {cycle}: Battery voltage = N/A (no data)")
-                    self.log_info(f"Cycle {cycle}: Battery voltage unavailable")
+                # Print elapsed time every 10 seconds
+                current_time = time.time()
+                if current_time - last_print_time >= 10:
+                    elapsed = current_time - start_time
+                    print(f"Elapsed time: {elapsed:.1f}s")
+                    self.log_info(f"Elapsed time: {elapsed:.1f}s")
+                    last_print_time = current_time
 
                 self.log_info(f"Starting {num_rotations} rotations...")
                 for rotation in range(num_rotations):
@@ -104,8 +107,59 @@ class CalibrationApi(BaseApi):
                 self.log_info(f"Completed {num_rotations} rotations")
 
         except KeyboardInterrupt:
-            self.log_info("Stress test stopped by user")
+            self.log_info("Rotation stress test stopped by user")
             self.movement.stop()
-            print("\nStress test stopped")
+            print("\nRotation stress test stopped")
+
+        self.movement.stop()
+
+    def run_circle_stress(self, diameter: float):
+        """Run continuous circle stress test with specified diameter."""
+        radius = diameter / 2.0
+        self.log_info(f"Starting circle stress test - diameter {diameter}m (radius {radius}m) - Press Ctrl+C to stop")
+
+        # Get speed from config
+        linear_speed = self.config.get_variable("linear_speed")
+        if linear_speed is None:
+            linear_speed = 0.2  # Default fallback
+
+        # Calculate angular speed for the circle
+        # v = r * ω, so ω = v / r
+        angular_speed = linear_speed / radius
+
+        self.log_info(f"Using linear speed: {linear_speed} m/s, angular speed: {angular_speed:.3f} rad/s")
+
+        cycle = 0
+        start_time = time.time()
+        last_print_time = start_time
+
+        try:
+            while rclpy.ok():
+                cycle += 1
+
+                # Print elapsed time every 10 seconds
+                current_time = time.time()
+                if current_time - last_print_time >= 10:
+                    elapsed = current_time - start_time
+                    print(f"Elapsed time: {elapsed:.1f}s")
+                    self.log_info(f"Elapsed time: {elapsed:.1f}s")
+                    last_print_time = current_time
+
+                print(f"Cycle {cycle}: Starting circle...")
+                self.log_info(f"Cycle {cycle}: Starting circle pattern")
+
+                # Calculate time for one complete circle
+                circumference = 2 * math.pi * radius
+                circle_time = circumference / linear_speed
+
+                # Execute circle movement
+                self.movement.cmd_vel_helper(linear_speed, angular_speed, circle_time)
+
+                self.log_info(f"Cycle {cycle}: Completed circle")
+
+        except KeyboardInterrupt:
+            self.log_info("Circle stress test stopped by user")
+            self.movement.stop()
+            print("\nCircle stress test stopped")
 
         self.movement.stop()

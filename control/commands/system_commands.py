@@ -15,10 +15,18 @@ def build_system_commands() -> Dict[str, CommandDef]:
             description="Execute square movement pattern",
             group="script"
         ),
-        "script.stress_test": CommandDef(
-            method_name="script_stress_test",
+        "script.rotate_stress": CommandDef(
+            method_name="script_rotate_stress",
             parameters=[],
-            description="Run continuous stress test with voltage monitoring",
+            description="Run continuous rotation stress test",
+            group="script"
+        ),
+        "script.circle_stress": CommandDef(
+            method_name="script_circle_stress",
+            parameters=[
+                ParameterDef("diameter", float, description="Diameter of circle in meters")
+            ],
+            description="Run continuous circle stress test with specified diameter",
             group="script"
         ),
         "process.running": CommandDef(

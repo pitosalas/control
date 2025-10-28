@@ -1,0 +1,22 @@
+script circle_stress <diameter>
+
+Run continuous circle stress test with specified diameter.
+
+USAGE:
+  script circle_stress <diameter>
+  scr circle_stress <diameter>
+  scr cir <diameter>
+
+PARAMETERS:
+  diameter    Diameter of the circle in meters
+
+DESCRIPTION:
+  Runs a continuous circle pattern stress test. The robot will drive
+  in circles of the specified diameter continuously until stopped
+  with Ctrl+C. Prints elapsed time every 10 seconds.
+  Uses the linear_speed config variable.
+
+EXAMPLES:
+  script circle_stress 2.0
+  scr cir 1.5
+  scr cir 3.0

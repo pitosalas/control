@@ -72,7 +72,8 @@ ABBREVIATIONS = {
     "topics": "top",
     # Script subcommands
     "square": "sqr",
-    "stress_test": "str",
+    "rotate_stress": "rot",
+    "circle_stress": "cir",
     # Map subcommands
     "save": "sav",
     # Special commands

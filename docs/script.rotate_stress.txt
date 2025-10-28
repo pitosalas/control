@@ -1,0 +1,18 @@
+script rotate_stress
+
+Run continuous rotation stress test.
+
+USAGE:
+  script rotate_stress
+  scr rotate_stress
+  scr rot
+
+DESCRIPTION:
+  Runs a continuous rotation stress test to test robot performance
+  and endurance. The robot will rotate in place continuously until
+  stopped with Ctrl+C. Prints elapsed time every 10 seconds.
+  Uses the stress_test_rotation_speed config variable.
+
+EXAMPLES:
+  script rotate_stress
+  scr rot

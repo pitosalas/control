@@ -19,7 +19,8 @@ LAUNCH & MAPPING:
 SCRIPT COMMANDS:
 
   script square <meters>                   Drive in a square pattern
-  script stress_test                       Run rotation stress test
+  script rotate_stress                     Run rotation stress test
+  script circle_stress <diameter>          Run circle stress test
 
 ABBREVIATIONS:
   All commands support 3-letter shortcuts:

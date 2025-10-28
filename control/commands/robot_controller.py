@@ -454,9 +454,13 @@ class RobotController:
         self.calibration.run_square_pattern(meters)
         return CommandResponse(True, f"Completed square pattern with {meters}m sides")
 
-    def script_stress_test(self) -> CommandResponse:
-        self.calibration.run_stress_test()
-        return CommandResponse(True, "Stress test completed")
+    def script_rotate_stress(self) -> CommandResponse:
+        self.calibration.run_rotate_stress()
+        return CommandResponse(True, "Rotation stress test completed")
+
+    def script_circle_stress(self, diameter: float) -> CommandResponse:
+        self.calibration.run_circle_stress(diameter)
+        return CommandResponse(True, f"Circle stress test with {diameter}m diameter completed")
 
     def set_variable(self, name: str, value: str) -> CommandResponse:
         self.config.set_variable(name, value)

@@ -10,6 +10,10 @@ class ConfigManager:
         "linear_speed": 0.3,
         "angular_speed": 0.4,
         "stress_test_rotation_speed": 0.2,
+        "linear_min": -0.5,
+        "linear_max": 0.5,
+        "angular_min": -1.0,
+        "angular_max": 1.0,
         "log_dir": "logs",
         "maps_dir": "maps",
         "dry_run": False
