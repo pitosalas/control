@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import math
 import time
+
 import rclpy
 
 from ..commands.config_manager import ConfigManager
@@ -116,18 +117,17 @@ class CalibrationApi(BaseApi):
     def run_circle_stress(self, diameter: float):
         """Run continuous circle stress test with specified diameter."""
         radius = diameter / 2.0
-        self.log_info(f"Starting circle stress test - diameter {diameter}m (radius {radius}m) - Press Ctrl+C to stop")
+        self.log_info(
+            f"Starting circle stress test - diameter {diameter}m (radius {radius}m) - Press Ctrl+C to stop"
+        )
 
         # Get speed from config
         linear_speed = self.config.get_variable("linear_speed")
-        if linear_speed is None:
-            linear_speed = 0.2  # Default fallback
+        angular_speed = self.config.get_variable("angular_speed")
 
-        # Calculate angular speed for the circle
-        # v = r * ω, so ω = v / r
-        angular_speed = linear_speed / radius
-
-        self.log_info(f"Using linear speed: {linear_speed} m/s, angular speed: {angular_speed:.3f} rad/s")
+        self.log_info(
+            f"Using linear speed: {linear_speed} m/s, angular speed: {angular_speed:.3f} rad/s"
+        )
 
         cycle = 0
         start_time = time.time()
@@ -142,11 +142,7 @@ class CalibrationApi(BaseApi):
                 if current_time - last_print_time >= 10:
                     elapsed = current_time - start_time
                     print(f"Elapsed time: {elapsed:.1f}s")
-                    self.log_info(f"Elapsed time: {elapsed:.1f}s")
                     last_print_time = current_time
-
-                print(f"Cycle {cycle}: Starting circle...")
-                self.log_info(f"Cycle {cycle}: Starting circle pattern")
 
                 # Calculate time for one complete circle
                 circumference = 2 * math.pi * radius
@@ -154,8 +150,6 @@ class CalibrationApi(BaseApi):
 
                 # Execute circle movement
                 self.movement.cmd_vel_helper(linear_speed, angular_speed, circle_time)
-
-                self.log_info(f"Cycle {cycle}: Completed circle")
 
         except KeyboardInterrupt:
             self.log_info("Circle stress test stopped by user")

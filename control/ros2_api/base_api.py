@@ -27,7 +27,7 @@ class BaseApi(Node, ABC):
         self.get_logger().debug(message)
 
     def log_info(self, message: str):
-        self.get_logger().info(message)
+        print(message)
 
     def log_warn(self, message: str):
         self.get_logger().warn(message)
