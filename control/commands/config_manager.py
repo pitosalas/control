@@ -6,19 +6,6 @@ from pathlib import Path
 from typing import Dict, Any
 
 class ConfigManager:
-    DEFAULT_CONFIG = {
-        "linear_speed": 0.3,
-        "angular_speed": 0.4,
-        "stress_test_rotation_speed": 0.2,
-        "linear_min": -0.5,
-        "linear_max": 0.5,
-        "angular_min": -1.0,
-        "angular_max": 1.0,
-        "log_dir": "logs",
-        "maps_dir": "maps",
-        "dry_run": False
-    }
-
     def __init__(self, config_file: str = None):
         if config_file is None:
             self.control_dir = Path.home() / ".control"
@@ -34,20 +21,11 @@ class ConfigManager:
         self._detect_test_environment()
 
     def load_config(self):
-        try:
-            with open(self.config_file, 'r') as f:
-                loaded_vars = yaml.safe_load(f) or {}
-                # Start with defaults, then update with loaded values
-                self.variables = self.DEFAULT_CONFIG.copy()
-                self.variables.update(loaded_vars)
-                # Save to update config file with any new default values
-                self.save_config()
-        except FileNotFoundError:
-            self.variables = self.DEFAULT_CONFIG.copy()
-            self.save_config()
+        with self.config_file.open() as f:
+            self.variables = yaml.safe_load(f) or {}
 
     def save_config(self):
-        with open(self.config_file, 'w') as f:
+        with self.config_file.open("w") as f:
             yaml.dump(self.variables, f, default_flow_style=False, sort_keys=False)
 
     def set_variable(self, name: str, value):
