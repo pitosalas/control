@@ -73,9 +73,14 @@ class CalibrationApi(BaseApi):
         """Run continuous stress test: rotate in place, measure voltage between rotations."""
         self.log_info("Starting stress test - Press Ctrl+C to stop")
 
-        slow_angular = 0.2
+        # Get rotation speed from config
+        slow_angular = self.config.get_variable("stress_test_rotation_speed")
+        if slow_angular is None:
+            slow_angular = 0.2  # Default fallback
         full_rotation = 2 * math.pi
         num_rotations = 10
+
+        self.log_info(f"Using rotation speed: {slow_angular} rad/s")
 
         cycle = 0
         try:

@@ -9,6 +9,7 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "linear_speed": 0.3,
         "angular_speed": 0.4,
+        "stress_test_rotation_speed": 0.2,
         "log_dir": "logs",
         "maps_dir": "maps",
         "dry_run": False
@@ -31,7 +32,12 @@ class ConfigManager:
     def load_config(self):
         try:
             with open(self.config_file, 'r') as f:
-                self.variables = yaml.safe_load(f) or {}
+                loaded_vars = yaml.safe_load(f) or {}
+                # Start with defaults, then update with loaded values
+                self.variables = self.DEFAULT_CONFIG.copy()
+                self.variables.update(loaded_vars)
+                # Save to update config file with any new default values
+                self.save_config()
         except FileNotFoundError:
             self.variables = self.DEFAULT_CONFIG.copy()
             self.save_config()
@@ -40,20 +46,24 @@ class ConfigManager:
         with open(self.config_file, 'w') as f:
             yaml.dump(self.variables, f, default_flow_style=False, sort_keys=False)
 
-    def set_variable(self, name: str, value: str):
+    def set_variable(self, name: str, value):
         """Set a variable value, attempting type conversion"""
-        # Try to convert to appropriate type
-        if value.lower() in ['true', 'false']:
-            self.variables[name] = value.lower() == 'true'
-        elif self._is_number(value):
-            # Try float first, then int
-            if '.' in value:
-                self.variables[name] = float(value)
-            else:
-                self.variables[name] = int(value)
-        else:
-            # Keep as string
+        # If value is already a native type (not string), use it directly
+        if not isinstance(value, str):
             self.variables[name] = value
+        else:
+            # Try to convert string to appropriate type
+            if value.lower() in ['true', 'false']:
+                self.variables[name] = value.lower() == 'true'
+            elif self._is_number(value):
+                # Try float first, then int
+                if '.' in value:
+                    self.variables[name] = float(value)
+                else:
+                    self.variables[name] = int(value)
+            else:
+                # Keep as string
+                self.variables[name] = value
 
         # Save configuration after setting variable
         self.save_config()
