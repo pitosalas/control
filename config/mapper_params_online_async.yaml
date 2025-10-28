@@ -1,4 +1,4 @@
-slam_toolbox:
+sslam_toolbox:
   ros__parameters:
 
     # Plugin params
@@ -21,11 +21,7 @@ slam_toolbox:
     # or at the dock, but they are mutually exclusive, if pose is given
     # will use pose
     map_file_name: "/home/pitosalas/.control/maps/production"
-<<<<<<< HEAD
     # map_start_pose: [0.0, 0.0, 0.0]
-=======
-    #map_start_pose: [0.0, 0.0, 0.0]
->>>>>>> 3729d84f4641f8790b8916876e41f04ea422f30a
     map_start_at_dock: true
 
     debug_logging: false

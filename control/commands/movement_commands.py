@@ -46,5 +46,37 @@ def build_movement_commands() -> Dict[str, CommandDef]:
             ],
             description="Turn robot by specified angle in degrees",
             group="movement"
+        ),
+        "move.forward": CommandDef(
+            method_name="move_forward",
+            parameters=[
+                ParameterDef("meters", float, description="Distance in meters")
+            ],
+            description="Move robot forward by distance",
+            group="movement"
+        ),
+        "move.backward": CommandDef(
+            method_name="move_backward",
+            parameters=[
+                ParameterDef("meters", float, description="Distance in meters")
+            ],
+            description="Move robot backward by distance",
+            group="movement"
+        ),
+        "turn.clockwise": CommandDef(
+            method_name="turn_clockwise",
+            parameters=[
+                ParameterDef("degrees", float, description="Angle in degrees")
+            ],
+            description="Turn robot clockwise by angle in degrees",
+            group="movement"
+        ),
+        "turn.counterclockwise": CommandDef(
+            method_name="turn_counterclockwise",
+            parameters=[
+                ParameterDef("degrees", float, description="Angle in degrees")
+            ],
+            description="Turn robot counterclockwise by angle in degrees",
+            group="movement"
         )
     }

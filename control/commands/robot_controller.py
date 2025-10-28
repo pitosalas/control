@@ -417,6 +417,14 @@ class RobotController:
         self.movement.move_time(seconds)
         return CommandResponse(True, f"Moved for {seconds} seconds")
 
+    def move_forward(self, meters: float) -> CommandResponse:
+        self.movement.move_dist(abs(meters))
+        return CommandResponse(True, f"Moved forward {abs(meters)} meters")
+
+    def move_backward(self, meters: float) -> CommandResponse:
+        self.movement.move_dist(-abs(meters))
+        return CommandResponse(True, f"Moved backward {abs(meters)} meters")
+
     def turn_by_radians(self, radians: float) -> CommandResponse:
         self.movement.turn_amount(radians)
         return CommandResponse(True, f"Turned {radians} radians")
@@ -424,6 +432,14 @@ class RobotController:
     def turn_by_degrees(self, degrees: float) -> CommandResponse:
         self.movement.turn_degrees(degrees)
         return CommandResponse(True, f"Turned {degrees} degrees")
+
+    def turn_clockwise(self, degrees: float) -> CommandResponse:
+        self.movement.turn_degrees(-abs(degrees))
+        return CommandResponse(True, f"Turned clockwise {abs(degrees)} degrees")
+
+    def turn_counterclockwise(self, degrees: float) -> CommandResponse:
+        self.movement.turn_degrees(abs(degrees))
+        return CommandResponse(True, f"Turned counterclockwise {abs(degrees)} degrees")
 
     def turn_for_time(self, seconds: float) -> CommandResponse:
         self.movement.turn_time(seconds)
@@ -433,9 +449,13 @@ class RobotController:
         self.movement.stop()
         return CommandResponse(True, "Robot stopped")
 
-    def calibrate_square(self, meters: float) -> CommandResponse:
-        self.calibration.calibrate_square(meters)
-        return CommandResponse(True, f"Completed square calibration with {meters}m sides")
+    def script_square(self, meters: float) -> CommandResponse:
+        self.calibration.run_square_pattern(meters)
+        return CommandResponse(True, f"Completed square pattern with {meters}m sides")
+
+    def script_stress_test(self) -> CommandResponse:
+        self.calibration.run_stress_test()
+        return CommandResponse(True, "Stress test completed")
 
     def set_variable(self, name: str, value: str) -> CommandResponse:
         self.config.set_variable(name, value)
@@ -542,7 +562,8 @@ class RobotController:
         return CommandResponse(False, "No position data available")
 
     def turn_radians(self, radians: float) -> CommandResponse:
-        return self.movement.turn_radians(radians)
+        self.movement.turn_amount(radians)
+        return CommandResponse(True, f"Turned {radians} radians")
 
     def turn_degrees(self, degrees: float) -> CommandResponse:
         return self.movement.turn_degrees(degrees)

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-from typing import Dict, List, Any, Optional
-from .robot_controller import CommandResponse
+from typing import Any, Dict, List, Optional
+
 from .command_def import CommandDef
-from .parameter_def import ParameterDef
-from .movement_commands import build_movement_commands
 from .control_commands import build_control_commands
-from .navigation_commands import build_navigation_commands
 from .launch_commands import build_launch_commands
+from .movement_commands import build_movement_commands
+from .navigation_commands import build_navigation_commands
+from .parameter_def import ParameterDef
+from .robot_controller import CommandResponse
 from .system_commands import build_system_commands
 
 
@@ -34,8 +35,7 @@ class CommandDispatcher:
         """Execute a command with given parameters."""
         if command_name not in self.commands:
             return CommandResponse(
-                success=False,
-                message=f"Unknown command: {command_name}"
+                success=False, message=f"Unknown command: {command_name}"
             )
 
         command_def = self.commands[command_name]
@@ -43,17 +43,13 @@ class CommandDispatcher:
         try:
             validated_params = self._validate_parameters(command_def, params)
         except ValueError as e:
-            return CommandResponse(
-                success=False,
-                message=f"Parameter error: {str(e)}"
-            )
+            return CommandResponse(success=False, message=f"Parameter error: {str(e)}")
 
         try:
             method = getattr(self.robot_controller, command_def.method_name)
         except AttributeError:
             return CommandResponse(
-                success=False,
-                message=f"Method {command_def.method_name} not found"
+                success=False, message=f"Method {command_def.method_name} not found"
             )
 
         try:
@@ -67,16 +63,17 @@ class CommandDispatcher:
             else:
                 return CommandResponse(
                     success=True,
-                    message=str(result) if result is not None else "Command completed"
+                    message=str(result) if result is not None else "Command completed",
                 )
 
         except Exception as e:
             return CommandResponse(
-                success=False,
-                message=f"Command execution error: {str(e)}"
+                success=False, message=f"Command execution error: {str(e)}"
             )
 
-    def _validate_parameters(self, command_def: CommandDef, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_parameters(
+        self, command_def: CommandDef, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Validate and convert parameters according to command definition."""
         validated = {}
 
@@ -94,8 +91,10 @@ class CommandDispatcher:
             value = params[param_name]
             try:
                 validated[param_name] = self._convert_parameter_value(param_def, value)
-            except (ValueError, TypeError) as e:
-                raise ValueError(f"Invalid type for {param_name}: expected {param_def.param_type.__name__}, got {type(value).__name__}")
+            except (ValueError, TypeError):
+                raise ValueError(
+                    f"Invalid type for {param_name}: expected {param_def.param_type.__name__}, got {type(value).__name__}"
+                )
 
         return validated
 
@@ -103,7 +102,7 @@ class CommandDispatcher:
         """Convert a parameter value to the expected type."""
         if param_def.param_type == bool:
             if isinstance(value, str):
-                return value.lower() in ('true', '1', 'yes', 'on')
+                return value.lower() in ("true", "1", "yes", "on")
             else:
                 return bool(value)
         elif param_def.param_type == str:
@@ -114,8 +113,11 @@ class CommandDispatcher:
     def list_commands(self, group: Optional[str] = None) -> List[str]:
         """List available commands, optionally filtered by group."""
         if group:
-            return [name for name, cmd_def in self.commands.items()
-                   if cmd_def.group == group]
+            return [
+                name
+                for name, cmd_def in self.commands.items()
+                if cmd_def.group == group
+            ]
         return list(self.commands.keys())
 
     def get_command_info(self, command_name: str) -> Optional[CommandDef]:
@@ -145,7 +147,11 @@ class CommandDispatcher:
         if cmd_def.parameters:
             help_text += "Parameters:\n"
             for param in cmd_def.parameters:
-                required_str = "required" if param.required else f"optional (default: {param.default})"
+                required_str = (
+                    "required"
+                    if param.required
+                    else f"optional (default: {param.default})"
+                )
                 help_text += f"  {param.name} ({param.param_type.__name__}, {required_str}): {param.description}\n"
         else:
             help_text += "No parameters required.\n"
@@ -158,13 +164,18 @@ class CommandDispatcher:
 
         for group in self.get_groups():
             help_text += f"{group.upper()} COMMANDS:\n"
-            group_commands = [name for name, cmd_def in self.commands.items()
-                            if cmd_def.group == group]
+            group_commands = [
+                name
+                for name, cmd_def in self.commands.items()
+                if cmd_def.group == group
+            ]
 
             for cmd_name in sorted(group_commands):
                 cmd_def = self.commands[cmd_name]
                 help_text += f"  {cmd_name:<20} - {cmd_def.description}\n"
             help_text += "\n"
 
-        help_text += "Use get_help('<command_name>') for detailed parameter information.\n"
+        help_text += (
+            "Use get_help('<command_name>') for detailed parameter information.\n"
+        )
         return help_text

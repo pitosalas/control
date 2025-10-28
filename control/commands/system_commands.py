@@ -7,13 +7,19 @@ from .parameter_def import ParameterDef
 def build_system_commands() -> Dict[str, CommandDef]:
     """Build system command definitions."""
     return {
-        "calibrate.square": CommandDef(
-            method_name="calibrate_square",
+        "script.square": CommandDef(
+            method_name="script_square",
             parameters=[
                 ParameterDef("meters", float, description="Size of square in meters")
             ],
-            description="Perform square calibration pattern",
-            group="calibration"
+            description="Execute square movement pattern",
+            group="script"
+        ),
+        "script.stress_test": CommandDef(
+            method_name="script_stress_test",
+            parameters=[],
+            description="Run continuous stress test with voltage monitoring",
+            group="script"
         ),
         "process.running": CommandDef(
             method_name="is_process_running",

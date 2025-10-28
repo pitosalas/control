@@ -5,6 +5,7 @@ import time
 import rclpy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import BatteryState
 
 from ..commands.config_manager import ConfigManager
 from .base_api import BaseApi
@@ -25,6 +26,12 @@ class MovementApi(BaseApi):
             self.odom_callback,
             10,
         )
+        self.battery_sub = self.create_subscription(
+            BatteryState,
+            "/battery_state",
+            self.battery_callback,
+            10,
+        )
 
         self.linear_min = -0.5
         self.linear_max = 0.5
@@ -34,6 +41,7 @@ class MovementApi(BaseApi):
         self.linear = self.config.get_variable("linear_speed")
         self.angular = self.config.get_variable("angular_speed")
         self.current_pose = None
+        self.current_voltage = None
 
     def move_dist(self, distance: float):
         seconds = abs(distance) / self.linear
@@ -128,6 +136,10 @@ class MovementApi(BaseApi):
         if not self.check_velocity_limits(linear, angular):
             return
 
+        if self.config.is_dry_run():
+            self.log_info(f"DRY RUN: Would move linear={linear}, angular={angular} for {seconds}s")
+            return
+
         twist = Twist()
         twist.linear.x = linear
         twist.angular.z = angular
@@ -148,3 +160,11 @@ class MovementApi(BaseApi):
     def odom_callback(self, msg):
         """Callback for odometry updates."""
         self.current_pose = msg.pose.pose
+
+    def battery_callback(self, msg):
+        """Callback for battery state updates."""
+        self.current_voltage = msg.voltage
+
+    def get_voltage(self):
+        """Get current battery voltage."""
+        return self.current_voltage
