@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-from typing import Any, Dict, List, Optional
+"""
+Command Dispatcher - Central command registry and execution dispatcher
+Author: Pito Salas and Claude Code
+Open Source Under MIT license
+"""
+from __future__ import annotations
 
-from .command_def import CommandDef
-from .control_commands import build_control_commands
-from .launch_commands import build_launch_commands
-from .movement_commands import build_movement_commands
-from .navigation_commands import build_navigation_commands
-from .parameter_def import ParameterDef
-from .robot_controller import CommandResponse
-from .system_commands import build_system_commands
+import control.commands.command_def as cd
+import control.commands.control_commands as ctrl_cmd
+import control.commands.launch_commands as lch_cmd
+import control.commands.movement_commands as mov_cmd
+import control.commands.navigation_commands as nav_cmd
+import control.commands.parameter_def as paramdef_mod
+import control.commands.robot_controller as rc
+import control.commands.system_commands as sys_cmd
 
 
 class CommandDispatcher:
@@ -21,20 +26,20 @@ class CommandDispatcher:
         self.robot_controller = robot_controller
         self.commands = self._build_command_registry()
 
-    def _build_command_registry(self) -> Dict[str, CommandDef]:
-        """Build the registry of all available commands."""
+    def _build_command_registry(self) -> dict[str, cd.CommandDef]:
         commands = {}
-        commands.update(build_movement_commands())
-        commands.update(build_control_commands())
-        commands.update(build_navigation_commands())
-        commands.update(build_launch_commands())
-        commands.update(build_system_commands())
+        commands.update(mov_cmd.build_movement_commands())
+        commands.update(ctrl_cmd.build_control_commands())
+        commands.update(nav_cmd.build_navigation_commands())
+        commands.update(lch_cmd.build_launch_commands())
+        commands.update(sys_cmd.build_system_commands())
         return commands
 
-    def execute(self, command_name: str, params: Dict[str, Any]) -> CommandResponse:
-        """Execute a command with given parameters."""
+    def execute(
+        self, command_name: str, params: dict[str, object]
+    ) -> rc.CommandResponse:
         if command_name not in self.commands:
-            return CommandResponse(
+            return rc.CommandResponse(
                 success=False, message=f"Unknown command: {command_name}"
             )
 
@@ -43,12 +48,14 @@ class CommandDispatcher:
         try:
             validated_params = self._validate_parameters(command_def, params)
         except ValueError as e:
-            return CommandResponse(success=False, message=f"Parameter error: {str(e)}")
+            return rc.CommandResponse(
+                success=False, message=f"Parameter error: {e!s}"
+            )
 
         try:
             method = getattr(self.robot_controller, command_def.method_name)
         except AttributeError:
-            return CommandResponse(
+            return rc.CommandResponse(
                 success=False, message=f"Method {command_def.method_name} not found"
             )
 
@@ -58,23 +65,21 @@ class CommandDispatcher:
             else:
                 result = method()
 
-            if isinstance(result, CommandResponse):
+            if isinstance(result, rc.CommandResponse):
                 return result
-            else:
-                return CommandResponse(
-                    success=True,
-                    message=str(result) if result is not None else "Command completed",
-                )
+            return rc.CommandResponse(
+                success=True,
+                message=str(result) if result is not None else "Command completed",
+            )
 
         except Exception as e:
-            return CommandResponse(
-                success=False, message=f"Command execution error: {str(e)}"
+            return rc.CommandResponse(
+                success=False, message=f"Command execution error: {e!s}"
             )
 
     def _validate_parameters(
-        self, command_def: CommandDef, params: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Validate and convert parameters according to command definition."""
+        self, command_def: cd.CommandDef, params: dict[str, object]
+    ) -> dict[str, object]:
         validated = {}
 
         for param_def in command_def.parameters:
@@ -98,20 +103,18 @@ class CommandDispatcher:
 
         return validated
 
-    def _convert_parameter_value(self, param_def: ParameterDef, value: Any) -> Any:
-        """Convert a parameter value to the expected type."""
+    def _convert_parameter_value(
+        self, param_def: paramdef_mod.ParameterDef, value: object
+    ) -> object:
         if param_def.param_type == bool:
             if isinstance(value, str):
                 return value.lower() in ("true", "1", "yes", "on")
-            else:
-                return bool(value)
-        elif param_def.param_type == str:
+            return bool(value)
+        if param_def.param_type == str:
             return str(value)
-        else:
-            return param_def.param_type(value)
+        return param_def.param_type(value)
 
-    def list_commands(self, group: Optional[str] = None) -> List[str]:
-        """List available commands, optionally filtered by group."""
+    def list_commands(self, group: str | None = None) -> list[str]:
         if group:
             return [
                 name
@@ -120,24 +123,19 @@ class CommandDispatcher:
             ]
         return list(self.commands.keys())
 
-    def get_command_info(self, command_name: str) -> Optional[CommandDef]:
-        """Get detailed information about a command."""
+    def get_command_info(self, command_name: str) -> cd.CommandDef | None:
         return self.commands.get(command_name)
 
-    def get_groups(self) -> List[str]:
-        """Get list of all command groups."""
-        groups = set(cmd_def.group for cmd_def in self.commands.values())
+    def get_groups(self) -> list[str]:
+        groups = {cmd_def.group for cmd_def in self.commands.values()}
         return sorted(groups)
 
-    def get_help(self, command_name: Optional[str] = None) -> str:
-        """Generate help text for commands."""
+    def get_help(self, command_name: str | None = None) -> str:
         if command_name:
             return self._get_command_help(command_name)
-        else:
-            return self._get_general_help()
+        return self._get_general_help()
 
     def _get_command_help(self, command_name: str) -> str:
-        """Get help for a specific command."""
         if command_name not in self.commands:
             return f"Unknown command: {command_name}"
 
@@ -159,7 +157,6 @@ class CommandDispatcher:
         return help_text
 
     def _get_general_help(self) -> str:
-        """Get general help for all commands."""
         help_text = "Available Commands:\n\n"
 
         for group in self.get_groups():

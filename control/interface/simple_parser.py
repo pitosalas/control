@@ -62,6 +62,7 @@ ABBREVIATIONS = {
     "status": "sts",
     # Launch subcommands
     "list": "lst",
+    "info": "inf",
     "start": "sta",
     "kill": "kil",
     "doctor": "doc",
@@ -70,6 +71,8 @@ ABBREVIATIONS = {
     "get": "get",  # Already 3 letters
     # System subcommands
     "topics": "top",
+    "ps": "ps",  # Already 2 letters
+    "launches": "lau",
     # Script subcommands
     "square": "sqr",
     "rotate_stress": "rot",
@@ -99,6 +102,7 @@ class ParsedCommand:
         "move forward 1.5" -> ParsedCommand("move", "forward", [1.5])
         "robot stop"       -> ParsedCommand("robot", "stop", [])
         "help move"        -> ParsedCommand("help", None, ["move"])
+
     """
 
     command: str  # Full command name (e.g., "move", not "mov")
@@ -117,6 +121,7 @@ class ParsedCommand:
                 -> ("move.forward", {"meters": 1.5})
             ParsedCommand("robot", "stop", [])
                 -> ("robot.stop", {})
+
         """
         # This is a simplified example - actual implementation would need
         # to map arguments to parameter names based on command definitions
@@ -180,6 +185,7 @@ class SimpleCommandParser:
             "move" -> "move"
             "mov"  -> "move"
             "fwd"  -> "forward"
+
         """
         # If it's already a full name, return it
         if word in self.abbreviations:
@@ -212,6 +218,7 @@ class SimpleCommandParser:
             "-1.5"  -> -1.5 (float)
             "true"  -> True (bool)
             "nav"   -> "nav" (str)
+
         """
         # Try boolean
         if value_str.lower() in ("true", "yes", "1"):
@@ -245,9 +252,7 @@ class SimpleCommandParser:
         """Parse list of token strings into typed values."""
         return [self.parse_value(arg) for arg in tokens]
 
-    def parse(
-        self, input_text: str
-    ) -> Tuple[Optional[ParsedCommand], Optional[ParseError]]:
+    def parse(self, input_text: str) -> tuple[ParsedCommand | None, ParseError | None]:
         """Parse a command line into a ParsedCommand."""
         tokens = input_text.strip().split()
 
@@ -263,9 +268,8 @@ class SimpleCommandParser:
             subcommand = self.resolve_keyword(tokens[1])
             arguments = self._parse_arguments(tokens[2:])
             return ParsedCommand(command, subcommand, arguments), None
-        else:
-            arguments = self._parse_arguments(tokens[1:])
-            return ParsedCommand(command, None, arguments), None
+        arguments = self._parse_arguments(tokens[1:])
+        return ParsedCommand(command, None, arguments), None
 
     def parse_tokens(
         self, tokens: List[str]
@@ -280,6 +284,7 @@ class SimpleCommandParser:
 
         Returns:
             Same as parse()
+
         """
         return self.parse(" ".join(tokens))
 

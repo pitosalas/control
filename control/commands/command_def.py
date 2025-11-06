@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-from dataclasses import dataclass
-from typing import List
+"""
+Command Definition - Dataclass for command registry definitions
+Author: Pito Salas and Claude Code
+Open Source Under MIT license
+"""
 
-from .parameter_def import ParameterDef
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import control.commands.parameter_def as pd
 
 
 @dataclass
 class CommandDef:
-    """Definition of a dispatchable command."""
-
     method_name: str
-    parameters: List[ParameterDef]
-    description: str = ""
-    group: str = "general"
+    parameters: list[pd.ParameterDef]
+    description: str
+    group: str

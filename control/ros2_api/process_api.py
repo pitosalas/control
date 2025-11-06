@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import rclpy
-from nav2_msgs.srv import SaveMap
 
 from ..commands.config_manager import ConfigManager
 from .base_api import BaseApi
@@ -68,16 +67,34 @@ class ProcessApi(BaseApi):
         super().__init__("process_api", config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
 
-        # Service client for map save operation
-        self.save_map_client = self.create_client(SaveMap, "/map_saver/save_map")
+        # Load launch templates from config, fallback to hardcoded defaults
+        self._load_launch_configs()
+
+    def _load_launch_configs(self):
+        """Load launch configurations from config file or use defaults"""
+        templates = self.config.get_launch_templates() if self.config else {}
+
+        if templates:
+            # Build LaunchConfig objects from config file
+            self.launch_configs = {}
+            for launch_type, template in templates.items():
+                self.launch_configs[launch_type] = LaunchConfig(
+                    launch_type=launch_type,
+                    command_template=template.get("command", ""),
+                    description=template.get("description", ""),
+                    default_params=template.get("default_params", {})
+                )
+        else:
+            # Fallback to hardcoded defaults
+            self.launch_configs = LAUNCH_CONFIGS
 
     def get_available_launch_types(self) -> List[str]:
         """Get list of available launch types"""
-        return list(LAUNCH_CONFIGS.keys())
+        return list(self.launch_configs.keys())
 
     def get_launch_config(self, launch_type: str) -> Optional[LaunchConfig]:
         """Get launch configuration for a specific type"""
-        return LAUNCH_CONFIGS.get(launch_type)
+        return self.launch_configs.get(launch_type)
 
     def _format_launch_params(self, params: Dict[str, str]) -> str:
         """Format parameters for launch command"""
@@ -94,35 +111,52 @@ class ProcessApi(BaseApi):
         if not config:
             raise ValueError(f"Unknown launch type: {launch_type}")
 
-        # Handle map special case with map_name parameter
-        if launch_type == "map" and "map_name" in params:
-            map_name = params.pop("map_name")  # Remove from params to avoid duplication
-            # Maps stored in ~/.control/maps/
-            maps_dir = self.config.get_control_dir() / "maps"
-            map_file = maps_dir / f"{map_name}.yaml"
-            if not map_file.exists():
-                raise ValueError(f"Map file not found: {map_file}")
-            map_file_abs = map_file.resolve()
-            map_args = f"--ros-args -p yaml_filename:={map_file_abs}"
-        else:
-            map_args = ""
+        # Start with the base command from template
+        command = config.command_template
 
         # Merge default params with provided params
         final_params = config.default_params.copy()
         final_params.update({k: str(v) for k, v in params.items()})
 
-        # Format parameters and build command
-        params_str = self._format_launch_params(final_params)
+        # Handle map parameter - resolve to full path if it's just a filename
+        if "map" in final_params:
+            map_value = final_params["map"]
+            # If it's not already an absolute path, resolve it in maps directory
+            if not map_value.startswith("/"):
+                maps_dir = self.config.get_maps_dir()
+                # Remove .yaml extension if present, we'll add it
+                map_name = map_value.replace(".yaml", "")
+                map_file = maps_dir / f"{map_name}.yaml"
+                if map_file.exists():
+                    final_params["map"] = str(map_file.resolve())
+                else:
+                    self.log_warn(f"Map file not found: {map_file}, using as-is")
 
-        # Special handling for map type which uses ros2 run instead of ros2 launch
-        if launch_type == "map" and params_str:
-            params_str = "--ros-args " + " ".join([f"-p {param}" for param in params_str.split()])
+        # Handle map_name parameter for map server launch type
+        if launch_type == "map" and "map_name" in params:
+            map_name = params.pop("map_name")
+            maps_dir = self.config.get_maps_dir()
+            map_file = maps_dir / f"{map_name}.yaml"
+            if not map_file.exists():
+                raise ValueError(f"Map file not found: {map_file}")
+            map_file_abs = map_file.resolve()
+            command += f" --ros-args -p yaml_filename:={map_file_abs}"
+            # Remove map_name from final_params if it exists
+            final_params.pop("map_name", None)
 
-        # Format command based on launch type
-        if launch_type == "map":
-            command = config.command_template.format(params=params_str, map_args=map_args).strip()
-        else:
-            command = config.command_template.format(params=params_str).strip()
+        # Add parameters to command
+        if final_params:
+            params_str = self._format_launch_params(final_params)
+            if params_str:
+                # For ros2 run commands, use --ros-args -p format
+                if "ros2 run" in command:
+                    if "--ros-args" not in command:
+                        command += " --ros-args"
+                    for param in params_str.split():
+                        command += f" -p {param}"
+                else:
+                    # For ros2 launch commands, append params directly
+                    command += f" {params_str}"
 
         self.log_debug(f"Launching {launch_type}: {command}")
         return self.launch_command(command, log_name=launch_type)
@@ -144,6 +178,74 @@ class ProcessApi(BaseApi):
         else:
             # Return status for all tracked processes
             return self.get_running_processes()
+
+    def run_command_sync(self, command: str, log_name: Optional[str] = None, timeout: float = 30.0) -> tuple[bool, str, Optional[str]]:
+        """
+        Run a command synchronously and wait for completion.
+        Returns (success, output, log_file_path) tuple.
+
+        Args:
+            command: Shell command to run
+            log_name: Optional name for log file (e.g., 'map_save')
+            timeout: Timeout in seconds (default 30)
+
+        Returns:
+            Tuple of (success: bool, output: str, log_file_path: Optional[str])
+        """
+        self.log_debug(f"Running command: {command}")
+
+        # Create log file if log_name is provided
+        log_file_path = None
+        if log_name:
+            self.config.ensure_subdirs()
+            log_dir_config = self.config.get_variable("log_dir") or "logs"
+            logs_dir = self.config.resolve_path(log_dir_config)
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_file_path = str(logs_dir / f"{log_name}_{timestamp}.log")
+
+        try:
+            start_time = time.time()
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+
+            output = result.stdout + result.stderr
+            success = result.returncode == 0
+
+            # Write to log file if configured
+            if log_file_path:
+                try:
+                    with open(log_file_path, 'w') as f:
+                        f.write(f"=== Command Log ===\n")
+                        f.write(f"Command: {command}\n")
+                        f.write(f"Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n")
+                        f.write(f"Return Code: {result.returncode}\n")
+                        f.write(f"==================\n\n")
+                        f.write(output)
+                        f.write(f"\n=== Command Completed ===\n")
+                        f.write(f"Ended: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                except IOError as e:
+                    self.log_warn(f"Failed to write log file {log_file_path}: {e}")
+
+            if success:
+                self.log_debug(f"Command completed successfully")
+            else:
+                self.log_error(f"Command failed with return code {result.returncode}")
+
+            return (success, output, log_file_path)
+
+        except subprocess.TimeoutExpired:
+            error_msg = f"Command timed out after {timeout} seconds"
+            self.log_error(error_msg)
+            return (False, error_msg, log_file_path)
+        except Exception as e:
+            error_msg = f"Failed to run command: {e}"
+            self.log_error(error_msg)
+            return (False, error_msg, log_file_path)
 
     def launch_command(self, command: str, log_name: Optional[str] = None) -> str:
         """Launch shell command and return process ID"""
@@ -198,43 +300,6 @@ class ProcessApi(BaseApi):
         except Exception as e:
             self.log_error(f"Failed to launch command '{command}': {e}")
             raise
-
-    def save_map_via_service(self, filename: str) -> bool:
-        """Save current map using ROS2 service call to persistent map_saver"""
-        if not self.save_map_client.wait_for_service(timeout_sec=2.0):
-            self.log_error("Map saver service not available")
-            return False
-
-        self.config.ensure_subdirs()
-        map_path = self.config.get_maps_dir() / filename
-
-        request = SaveMap.Request()
-        request.map_topic = "map"
-        request.map_url = str(map_path)
-        request.image_format = "pgm"
-        request.map_mode = "trinary"
-        request.free_thresh = 0.25
-        request.occupied_thresh = 0.65
-
-        try:
-            future = self.save_map_client.call_async(request)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
-
-            if future.result() is not None:
-                result = future.result()
-                if result.result:
-                    self.log_debug(f"Map saved successfully to {map_path}")
-                    return True
-                else:
-                    self.log_error(f"Failed to save map: {result.result}")
-                    return False
-            else:
-                self.log_error("Map save service call failed")
-                return False
-        except Exception as e:
-            self.log_error(f"Error calling map save service: {e}")
-            return False
-
 
     def run_ros_node(self, package: str, executable: str, **kwargs) -> str:
         """Run a ROS2 node with optional parameters"""

@@ -1,59 +1,52 @@
 #!/usr/bin/env python3
-from typing import Dict
-from .command_def import CommandDef
-from .parameter_def import ParameterDef
+"""
+Launch command definitions for unified launch management.
+
+Author: Pito Salas and Claude Code
+Open Source Under MIT license
+"""
+from __future__ import annotations
+
+import control.commands.command_def as cd
+import control.commands.parameter_def as pd
 
 
-def build_launch_commands() -> Dict[str, CommandDef]:
-    """Build launch command definitions for unified launch management."""
+def build_launch_commands() -> dict[str, cd.CommandDef]:
     return {
-        "launch.list": CommandDef(
+        "launch.list": cd.CommandDef(
             method_name="launch_list",
             parameters=[],
-            description="List all available launch types with status",
+            description="List all available launch templates from config",
             group="launch"
         ),
-        "launch.start": CommandDef(
+        "launch.info": cd.CommandDef(
+            method_name="launch_info",
+            parameters=[
+                pd.ParameterDef("launch_type", str, True, None, "Launch type to show info for")
+            ],
+            description="Show detailed information about a launch template",
+            group="launch"
+        ),
+        "launch.start": cd.CommandDef(
             method_name="launch_start",
             parameters=[
-                ParameterDef("launch_type", str, description="Launch type (nav, slam, map)"),
-                ParameterDef("use_sim_time", bool, required=False, default=False,
-                           description="Use simulation time (use --sim-time flag)"),
-                ParameterDef("map_name", str, required=False,
-                           description="Map name for map launch type - use --map-name option (without extension)")
+                pd.ParameterDef("launch_type", str, True, None, "Launch type (nav, slam, map)"),
+                pd.ParameterDef("use_sim_time", bool, False, False,
+                              "Use simulation time (use --sim-time flag)"),
+                pd.ParameterDef("map", str, False, None,
+                              "Map filename (without extension) in maps directory"),
+                pd.ParameterDef("map_name", str, False, None,
+                              "Map name for map launch type - use --map-name option (without extension)")
             ],
-            description="Start a launch process by type (e.g., launch start map --map-name map5)",
+            description="Start a launch process by type (e.g., launch start nav --map basement)",
             group="launch"
         ),
-        "launch.kill": CommandDef(
-            method_name="launch_kill",
+        "launch.stop": cd.CommandDef(
+            method_name="launch_stop",
             parameters=[
-                ParameterDef("launch_type", str, description="Launch type to stop")
+                pd.ParameterDef("launch_type", str, True, None, "Launch type to stop (nav, slam, map)")
             ],
-            description="Stop a launch process by type",
-            group="launch"
-        ),
-        "launch.status": CommandDef(
-            method_name="launch_status",
-            parameters=[
-                ParameterDef("launch_type", str, required=False,
-                           description="Specific launch type (optional)")
-            ],
-            description="Show status of launch processes",
-            group="launch"
-        ),
-        "launch.doctor": CommandDef(
-            method_name="launch_doctor",
-            parameters=[],
-            description="Diagnose launch process conflicts and suggest fixes",
-            group="launch"
-        ),
-        "launch.kill-all": CommandDef(
-            method_name="launch_kill_all",
-            parameters=[
-                ParameterDef("launch_type", str, description="Launch type to kill all instances of")
-            ],
-            description="Kill ALL instances of a launch type (tracked + external)",
+            description="Stop a running launch process by type",
             group="launch"
         )
     }
