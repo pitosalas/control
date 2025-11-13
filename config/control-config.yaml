@@ -1,0 +1,36 @@
+linear_speed: 0.2
+angular_speed: 1.5
+stress_test_rotation_speed: 0.5
+linear_min: -0.5
+linear_max: 0.8
+angular_min: -1.0
+angular_max: 2.0
+log_dir: logs
+map_name: exp1
+dry_run: false
+control_dir: /home/pitosalas/.control
+launch_templates:
+  nav_lino:
+    name: nav2_bringup
+    command: ros2 launch linorobot2_navigation navigation.launch.py
+    description: Nav2 launched from linorobot2
+    default_params:
+      sim: 'false'
+      map: basement.yaml
+      rviz: 'false'
+      config: /home/pitosalas/ros2_ws/src/config/navigation.yaml
+  slam_lino:
+    name: slam_toolbox
+    command: ros2 launch linorobot2_navigation slam.launch.py
+    description: Slam launched from linorobot2
+    default_params:
+      sim: 'false'
+      rviz: 'false'
+  nav:
+    name: bl_nav
+    command: bl dome navigation_bl.launch.py
+    description: Better launch Dome naviation
+  fox:
+    name: Foxglove
+    command: ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+    description: Foxglove driver
