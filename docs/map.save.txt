@@ -1,14 +1,21 @@
-map save <filename>
+map save
 
-Save the current map to the maps/ folder.
+Save the current map to the maps/ folder in yaml/pgm format.
 
 USAGE:
-  map save <filename>
-  map sav <filename>
+  map save
 
 PARAMETERS:
-  filename    Name for the saved map file
+  None - uses the 'map_name' config variable
+
+CONFIGURATION:
+  Set the map name first:
+    config set map_name <name>
+
+DESCRIPTION:
+  Saves the map in static format (.yaml and .pgm files) to the maps/ folder.
+  The map name is read from the map_name config variable.
 
 EXAMPLES:
-  map save my_map
-  map sav room_scan
+  config set map_name basement
+  map save

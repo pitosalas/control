@@ -247,12 +247,11 @@ class RobotController:
             topic_list.append({"name": topic_name, "types": type_names})
         return CommandResponse(True, "Active ROS topics", {"topics": topic_list})
 
-    def map_save(self, map_name: str = None) -> CommandResponse:
+    def map_save(self) -> CommandResponse:
         """Save current map using map_saver_cli"""
-        if map_name is None:
-            map_name = self.config.get_variable("map_name")
-            if not map_name:
-                map_name = "basement"
+        map_name = self.config.get_variable("map_name")
+        if not map_name:
+            return CommandResponse(False, "map_name variable not set. Use 'config set map_name <name>' first.")
 
         self.config.ensure_subdirs()
         maps_dir = self.config.get_maps_dir()
@@ -289,20 +288,82 @@ class RobotController:
 
         return CommandResponse(False, error_msg)
 
+    def map_serialize(self) -> CommandResponse:
+        """Save current map in SLAM Toolbox serialized format"""
+        map_name = self.config.get_variable("map_name")
+        if not map_name:
+            return CommandResponse(False, "map_name variable not set. Use 'config set map_name <name>' first.")
+
+        self.config.ensure_subdirs()
+        maps_dir = self.config.get_maps_dir()
+        full_path = maps_dir / map_name
+
+        cmd = (
+            f"ros2 service call /slam_toolbox/serialize_map "
+            f"slam_toolbox/srv/SerializePoseGraph "
+            f'"{{filename: \'{full_path}\'}}"'
+        )
+
+        # Use ProcessApi to run command with logging
+        success, output, log_file = self.process.run_command_sync(
+            cmd, log_name="map_serialize", timeout=15.0
+        )
+
+        if success:
+            msg = f"Map serialized to {full_path}.posegraph and {map_name}.data"
+            if log_file:
+                msg += f"\nLog: {log_file}"
+            return CommandResponse(True, msg)
+
+        error_msg = "Failed to serialize map"
+        if "timed out" in output.lower():
+            error_msg = "Map serialize timeout after 15 seconds"
+        elif output:
+            # Extract error message from output
+            error_lines = [line for line in output.split("\n") if line.strip()]
+            if error_lines:
+                error_msg = f"Failed to serialize map: {error_lines[-1]}"
+
+        if log_file:
+            error_msg += f"\nSee log: {log_file}"
+
+        return CommandResponse(False, error_msg)
+
     def list_maps(self) -> CommandResponse:
         self.config.ensure_subdirs()
         maps_dir = self.config.get_maps_dir()
-        yaml_files = list(maps_dir.glob("*.yaml"))
 
-        if not yaml_files:
+        # Find all map-related files
+        all_files = list(maps_dir.glob("*"))
+
+        # Group files by base name
+        map_groups = {}
+        for f in all_files:
+            if f.is_file():
+                base_name = f.stem
+                ext = f.suffix
+                if base_name not in map_groups:
+                    map_groups[base_name] = []
+                map_groups[base_name].append(ext)
+
+        if not map_groups:
             return CommandResponse(True, f"No maps found in {maps_dir}", {"maps": []})
 
-        map_names = [f.stem for f in yaml_files]
-        map_names.sort()
+        # Build formatted output
+        output_lines = []
+        output_lines.append(f"Maps in {maps_dir}:")
+        output_lines.append("-" * 70)
 
-        return CommandResponse(
-            True, f"Found {len(map_names)} maps", {"maps": map_names}
-        )
+        for map_name in sorted(map_groups.keys()):
+            extensions = sorted(map_groups[map_name])
+            ext_str = ", ".join(extensions)
+            output_lines.append(f"  {map_name:<30} [{ext_str}]")
+
+        output_lines.append("-" * 70)
+        output_lines.append(f"Total: {len(map_groups)} map(s)")
+
+        message = "\n".join(output_lines)
+        return CommandResponse(True, message, {"maps": list(map_groups.keys())})
 
     def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
         return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)

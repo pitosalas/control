@@ -79,6 +79,7 @@ ABBREVIATIONS = {
     "circle_stress": "cir",
     # Map subcommands
     "save": "sav",
+    "serialize": "ser",
     # Special commands
     "help": "hlp",
     "exit": "ext",

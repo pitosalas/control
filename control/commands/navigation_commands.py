@@ -14,16 +14,20 @@ def build_navigation_commands() -> dict[str, cd.CommandDef]:
     return {
         "map.save": cd.CommandDef(
             method_name="map_save",
-            parameters=[
-                pd.ParameterDef("map_name", str, False, None, "Map name (without extension, defaults to config map_name)")
-            ],
-            description="Save current map to maps/ folder",
+            parameters=[],
+            description="Save current map to maps/ folder (uses map_name variable)",
             group="map"
         ),
         "map.list": cd.CommandDef(
             method_name="list_maps",
             parameters=[],
             description="List available maps in maps/ folder",
+            group="map"
+        ),
+        "map.serialize": cd.CommandDef(
+            method_name="map_serialize",
+            parameters=[],
+            description="Save current map in SLAM Toolbox serialized format (uses map_name variable)",
             group="map"
         ),
     }

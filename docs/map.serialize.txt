@@ -1,0 +1,23 @@
+map serialize
+
+Save the current map in SLAM Toolbox serialized format.
+
+USAGE:
+  map serialize
+
+PARAMETERS:
+  None - uses the 'map_name' config variable
+
+CONFIGURATION:
+  Set the map name first:
+    config set map_name <name>
+
+DESCRIPTION:
+  Saves the map in SLAM Toolbox's native serialized format (.posegraph and .data files).
+  This format preserves the full pose graph and allows continuing mapping sessions.
+  The map name is read from the map_name config variable.
+  Use 'map save' for static maps in yaml/pgm format instead.
+
+EXAMPLES:
+  config set map_name basement
+  map serialize
