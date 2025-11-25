@@ -1,4 +1,4 @@
-sslam_toolbox:
+slam_toolbox:
   ros__parameters:
 
     # Plugin params
