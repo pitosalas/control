@@ -23,8 +23,9 @@ SCRIPT COMMANDS:
   script circle_stress <diameter>          Run circle stress test
 
 ABBREVIATIONS:
-  All commands support 3-letter shortcuts:
-  mov fwd 1.5  |  trn clk 90  |  cfg lst  |  rob stp
+  Commands: m (move), t (turn), r (robot), c (config), lch (launch), sys (system), scr (script)
+  Subcommands: fwd (forward), bak (backward), clk (clockwise), ccw (counterclockwise), lst (list), etc.
+  Examples: m fwd 1.5  |  t clk 90  |  c lst  |  r stp
 
 For detailed help on any command:
   help <command>

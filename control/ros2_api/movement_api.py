@@ -40,8 +40,32 @@ class MovementApi(BaseApi):
         self.linear_min = self.config.get_variable("linear_min")
         self.linear_max = self.config.get_variable("linear_max")
 
+        self._validate_config()
+
         self.current_pose = None
         self.current_voltage = None
+
+    def _validate_config(self):
+        missing = []
+        if self.linear is None:
+            missing.append("linear_speed")
+        if self.angular is None:
+            missing.append("angular_speed")
+        if self.linear_min is None:
+            missing.append("linear_min")
+        if self.linear_max is None:
+            missing.append("linear_max")
+        if self.angular_min is None:
+            missing.append("angular_min")
+        if self.angular_max is None:
+            missing.append("angular_max")
+
+        if missing:
+            config_file = self.config.config_file if self.config else "config file"
+            raise ValueError(
+                f"Missing required configuration variables: {', '.join(missing)}. "
+                f"Please check {config_file}"
+            )
 
     def move_dist(self, distance: float):
         seconds = abs(distance) / self.linear
