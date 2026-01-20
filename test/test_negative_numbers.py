@@ -136,7 +136,9 @@ class TestMovementApiNegativeNumbers:
         from control.commands.config_manager import ConfigManager
 
         mock_rclpy.ok.return_value = True
-        config = ConfigManager()
+        config = ConfigManager("/home/pitosalas/.control/config.yaml")
+        # Disable dry_run for this test
+        config.set_variable("dry_run", False)
         api = MovementApi(config)
 
         # Mock the publisher
@@ -155,7 +157,8 @@ class TestMovementApiNegativeNumbers:
         from control.commands.config_manager import ConfigManager
 
         mock_rclpy.ok.return_value = True
-        config = ConfigManager()
+        config = ConfigManager("/home/pitosalas/.control/config.yaml")
+        config.set_variable("dry_run", False)
         api = MovementApi(config)
 
         # Mock the publisher
@@ -175,7 +178,8 @@ class TestMovementApiNegativeNumbers:
         import math
 
         mock_rclpy.ok.return_value = True
-        config = ConfigManager()
+        config = ConfigManager("/home/pitosalas/.control/config.yaml")
+        config.set_variable("dry_run", False)
         api = MovementApi(config)
 
         # Mock the publisher

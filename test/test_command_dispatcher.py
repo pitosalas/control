@@ -45,7 +45,8 @@ class TestCommandDispatcher:
         result = dispatcher.execute("launch.start", {"launch_type": "nav"})
 
         assert result.success is True
-        mock_robot_controller.launch_start.assert_called_once_with(launch_type="nav", use_sim_time=False)
+        # Optional params with None default are not passed if not provided
+        mock_robot_controller.launch_start.assert_called_once_with(launch_type="nav")
 
     def test_missing_required_parameter(self, dispatcher):
         """Test error handling for missing required parameters."""

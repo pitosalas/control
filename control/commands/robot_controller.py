@@ -180,14 +180,6 @@ class RobotController:
         self.movement.move_dist(-abs(meters))
         return CommandResponse(True, f"Moved backward {abs(meters)} meters")
 
-    def turn_by_radians(self, radians: float) -> CommandResponse:
-        self.movement.turn_amount(radians)
-        return CommandResponse(True, f"Turned {radians} radians")
-
-    def turn_by_degrees(self, degrees: float) -> CommandResponse:
-        self.movement.turn_degrees(degrees)
-        return CommandResponse(True, f"Turned {degrees} degrees")
-
     def turn_clockwise(self, degrees: float) -> CommandResponse:
         self.movement.turn_degrees(-abs(degrees))
         return CommandResponse(True, f"Turned clockwise {abs(degrees)} degrees")
@@ -238,14 +230,6 @@ class RobotController:
         return CommandResponse(
             True, f"{name} = {value} ({type(value).__name__})", {"value": value}
         )
-
-    def get_topics(self) -> CommandResponse:
-        topics = self.movement.get_topics()
-        topic_list = []
-        for topic_name, topic_types in topics:
-            type_names = [t for t in topic_types]
-            topic_list.append({"name": topic_name, "types": type_names})
-        return CommandResponse(True, "Active ROS topics", {"topics": topic_list})
 
     def map_save(self) -> CommandResponse:
         """Save current map using map_saver_cli"""
@@ -364,57 +348,6 @@ class RobotController:
 
         message = "\n".join(output_lines)
         return CommandResponse(True, message, {"maps": list(map_groups.keys())})
-
-    def start_slam(self, use_sim_time: bool = None, **kwargs) -> CommandResponse:
-        # Filter out None values before passing to _start_launch
-        if use_sim_time is not None:
-            kwargs['use_sim_time'] = use_sim_time
-        return self._start_launch("slam", **kwargs)
-
-    def launch_file(self, package: str, launch_file: str, **kwargs) -> CommandResponse:
-        process_id = self.process.launch_file(package, launch_file, **kwargs)
-        return CommandResponse(
-            True, f"Launched {package}/{launch_file}", {"process_id": process_id}
-        )
-
-    def run_ros_node(self, package: str, executable: str, **kwargs) -> CommandResponse:
-        process_id = self.process.run_ros_node(package, executable, **kwargs)
-        return CommandResponse(
-            True, f"Started {package}/{executable}", {"process_id": process_id}
-        )
-
-    def launch_command(self, command: str) -> CommandResponse:
-        process_id = self.process.launch_command(command)
-        return CommandResponse(
-            True, f"Launched command: {command}", {"process_id": process_id}
-        )
-
-    def get_active_processes(self) -> CommandResponse:
-        processes = self.process.get_running_processes()
-        return CommandResponse(True, "Active processes", {"processes": processes})
-
-    def get_process_output(
-        self, process_id: str, lines: int | None = None
-    ) -> CommandResponse:
-        output = self.process.get_process_output(process_id, lines)
-        return CommandResponse(
-            True, f"Output for process {process_id}", {"output": output}
-        )
-
-    def move_continuous(self, linear: float, angular: float) -> CommandResponse:
-        self.movement.move_continuous(linear, angular)
-        return CommandResponse(
-            True, f"Continuous movement: linear={linear}, angular={angular}"
-        )
-
-    def get_current_position(self) -> CommandResponse:
-        position = self.movement.get_current_position()
-        if position:
-            x, y = position
-            return CommandResponse(
-                True, f"Position: x={x:.3f}, y={y:.3f}", {"x": x, "y": y}
-            )
-        return CommandResponse(False, "No position data available")
 
     def turn_radians(self, radians: float) -> CommandResponse:
         self.movement.turn_amount(radians)
@@ -711,13 +644,3 @@ class RobotController:
         except Exception as e:
             return CommandResponse(False, f"Error killing process: {e}")
 
-    def save_config(self):
-        """Save configuration to file"""
-        self.config.save_config()
-
-    def cleanup(self):
-        """Clean up all resources"""
-        self.process.destroy_node()
-        self.movement.destroy_node()
-        if hasattr(self.calibration, "destroy_node"):
-            self.calibration.destroy_node()

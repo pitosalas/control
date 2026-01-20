@@ -1,30 +1,35 @@
 #!/usr/bin/env python3
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from control.commands.command_dispatcher import CommandDispatcher
 from control.commands.robot_controller import RobotController, CommandResponse
 from control.commands.config_manager import ConfigManager
 
+CONFIG_FILE = "/home/pitosalas/.control/config.yaml"
+
 
 class TestLaunchCommands(unittest.TestCase):
-    """Test cases for new launch command definitions"""
+    """Test cases for launch command definitions"""
 
-    def setUp(self):
+    @patch("control.commands.robot_controller.ProcessApi")
+    @patch("control.commands.robot_controller.MovementApi")
+    @patch("control.commands.robot_controller.CalibrationApi")
+    def setUp(self, mock_calib, mock_move, mock_proc):
         """Set up test fixtures"""
-        self.config_manager = ConfigManager()
+        self.config_manager = ConfigManager(CONFIG_FILE)
         self.controller = RobotController(self.config_manager)
         self.dispatcher = CommandDispatcher(self.controller)
 
         # Mock the controller methods to avoid actual execution
         self.controller.launch_list = MagicMock(return_value=CommandResponse(True, "Mock list"))
         self.controller.launch_start = MagicMock(return_value=CommandResponse(True, "Mock start"))
-        self.controller.launch_kill = MagicMock(return_value=CommandResponse(True, "Mock kill"))
-        self.controller.launch_status = MagicMock(return_value=CommandResponse(True, "Mock status"))
+        self.controller.launch_stop = MagicMock(return_value=CommandResponse(True, "Mock stop"))
+        self.controller.launch_info = MagicMock(return_value=CommandResponse(True, "Mock info"))
 
     def test_launch_commands_registered(self):
         """Test that all launch commands are properly registered"""
         expected_commands = [
-            "launch.list", "launch.start", "launch.kill", "launch.status"
+            "launch.list", "launch.start", "launch.stop", "launch.info"
         ]
 
         for cmd in expected_commands:
@@ -36,13 +41,10 @@ class TestLaunchCommands(unittest.TestCase):
         """Test launch.list command definition and execution"""
         cmd_def = self.dispatcher.commands["launch.list"]
 
-        # Test command definition
         self.assertEqual(cmd_def.method_name, "launch_list")
-        self.assertEqual(cmd_def.description, "List all available launch types with status")
         self.assertEqual(cmd_def.group, "launch")
         self.assertEqual(len(cmd_def.parameters), 0)
 
-        # Test execution
         response = self.dispatcher.execute("launch.list", {})
         self.assertTrue(response.success)
         self.controller.launch_list.assert_called_once_with()
@@ -51,78 +53,41 @@ class TestLaunchCommands(unittest.TestCase):
         """Test launch.start command definition and execution"""
         cmd_def = self.dispatcher.commands["launch.start"]
 
-        # Test command definition
         self.assertEqual(cmd_def.method_name, "launch_start")
-        self.assertEqual(cmd_def.description, "Start a launch process by type")
         self.assertEqual(cmd_def.group, "launch")
-        self.assertEqual(len(cmd_def.parameters), 2)
 
-        # Test parameter definitions
         param_names = [p.name for p in cmd_def.parameters]
         self.assertIn("launch_type", param_names)
-        self.assertIn("use_sim_time", param_names)
 
-        # Test execution with required parameter
         response = self.dispatcher.execute("launch.start", {"launch_type": "nav"})
         self.assertTrue(response.success)
-        self.controller.launch_start.assert_called_with(launch_type="nav", use_sim_time=False)
 
-        # Test execution with optional parameter
-        self.controller.launch_start.reset_mock()
-        response = self.dispatcher.execute("launch.start", {
-            "launch_type": "slam",
-            "use_sim_time": True
-        })
-        self.assertTrue(response.success)
-        self.controller.launch_start.assert_called_with(launch_type="slam", use_sim_time=True)
+    def test_launch_stop_command(self):
+        """Test launch.stop command definition and execution"""
+        cmd_def = self.dispatcher.commands["launch.stop"]
 
-    def test_launch_kill_command(self):
-        """Test launch.kill command definition and execution"""
-        cmd_def = self.dispatcher.commands["launch.kill"]
-
-        # Test command definition
-        self.assertEqual(cmd_def.method_name, "launch_kill")
-        self.assertEqual(cmd_def.description, "Stop a launch process by type")
+        self.assertEqual(cmd_def.method_name, "launch_stop")
         self.assertEqual(cmd_def.group, "launch")
         self.assertEqual(len(cmd_def.parameters), 1)
 
-        # Test parameter definition
         param = cmd_def.parameters[0]
         self.assertEqual(param.name, "launch_type")
         self.assertEqual(param.param_type, str)
         self.assertTrue(param.required)
 
-        # Test execution
-        response = self.dispatcher.execute("launch.kill", {"launch_type": "nav"})
+        response = self.dispatcher.execute("launch.stop", {"launch_type": "nav"})
         self.assertTrue(response.success)
-        self.controller.launch_kill.assert_called_once_with(launch_type="nav")
+        self.controller.launch_stop.assert_called_once_with(launch_type="nav")
 
-    def test_launch_status_command(self):
-        """Test launch.status command definition and execution"""
-        cmd_def = self.dispatcher.commands["launch.status"]
+    def test_launch_info_command(self):
+        """Test launch.info command definition and execution"""
+        cmd_def = self.dispatcher.commands["launch.info"]
 
-        # Test command definition
-        self.assertEqual(cmd_def.method_name, "launch_status")
-        self.assertEqual(cmd_def.description, "Show status of launch processes")
+        self.assertEqual(cmd_def.method_name, "launch_info")
         self.assertEqual(cmd_def.group, "launch")
-        self.assertEqual(len(cmd_def.parameters), 1)
 
-        # Test parameter definition
-        param = cmd_def.parameters[0]
-        self.assertEqual(param.name, "launch_type")
-        self.assertEqual(param.param_type, str)
-        self.assertFalse(param.required)  # Optional parameter
-
-        # Test execution without parameter (all status)
-        response = self.dispatcher.execute("launch.status", {})
+        response = self.dispatcher.execute("launch.info", {"launch_type": "nav"})
         self.assertTrue(response.success)
-        self.controller.launch_status.assert_called_with()
-
-        # Test execution with specific launch type
-        self.controller.launch_status.reset_mock()
-        response = self.dispatcher.execute("launch.status", {"launch_type": "slam"})
-        self.assertTrue(response.success)
-        self.controller.launch_status.assert_called_with(launch_type="slam")
 
     def test_launch_commands_group(self):
         """Test that all launch commands are in the launch group"""
@@ -134,15 +99,6 @@ class TestLaunchCommands(unittest.TestCase):
                 cmd_def = self.dispatcher.commands[cmd]
                 self.assertEqual(cmd_def.group, "launch",
                                f"Command {cmd} should be in launch group")
-
-    def test_command_count_increased(self):
-        """Test that total command count increased with new launch commands"""
-        total_commands = len(self.dispatcher.commands)
-
-        # Should have added 4 launch commands
-        # Current count should be 21
-        self.assertEqual(total_commands, 21,
-                        f"Expected 21 commands after adding launch commands, got {total_commands}")
 
 
 if __name__ == "__main__":

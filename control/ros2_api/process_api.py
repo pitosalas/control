@@ -297,26 +297,6 @@ class ProcessApi(BaseApi):
             self.log_error(f"Failed to launch command '{command}': {e}")
             raise
 
-    def run_ros_node(self, package: str, executable: str, **kwargs) -> str:
-        """Run a ROS2 node with optional parameters"""
-        params = []
-        for key, value in kwargs.items():
-            params.append(f"--ros-args -p {key}:={value}")
-
-        param_string = " ".join(params)
-        command = f"ros2 run {package} {executable} {param_string}"
-        return self.launch_command(command)
-
-    def launch_file(self, package: str, launch_file: str, **kwargs) -> str:
-        """Launch a ROS2 launch file with optional parameters"""
-        params = []
-        for key, value in kwargs.items():
-            params.append(f"{key}:={value}")
-
-        param_string = " ".join(params)
-        command = f"ros2 launch {package} {launch_file} {param_string}"
-        return self.launch_command(command)
-
     def kill_process(self, process_id: str) -> bool:
         """Kill process and all children (Ctrl+C equivalent)"""
         if process_id not in self.processes:
@@ -428,21 +408,6 @@ class ProcessApi(BaseApi):
 
         return True
 
-    def wait_for_process(
-        self, process_id: str, timeout: Optional[float] = None
-    ) -> bool:
-        """Wait for process to complete"""
-        if process_id not in self.processes:
-            return False
-
-        proc_info = self.processes[process_id]
-        try:
-            proc_info.process.wait(timeout=timeout)
-            proc_info.is_running = False
-            return True
-        except subprocess.TimeoutExpired:
-            return False
-
     def _capture_output(self, process_id: str, process_info: ProcessInfo):
         """Capture initial output then detach from process"""
         log_file_handle = None
@@ -510,22 +475,6 @@ class ProcessApi(BaseApi):
 
             # Mark as no longer being monitored (but still running)
             self.log_debug(f"Process {process_id} detached after capturing {lines_captured} lines")
-
-    def cleanup_finished_processes(self):
-        """Remove finished processes from tracking"""
-        finished = []
-        for process_id, proc_info in self.processes.items():
-            if not proc_info.is_running:
-                try:
-                    proc_info.process.poll()
-                    if proc_info.process.returncode is not None:
-                        finished.append(process_id)
-                except (OSError, AttributeError):
-                    finished.append(process_id)
-
-        for process_id in finished:
-            del self.processes[process_id]
-            self.log_debug(f"Cleaned up finished process {process_id}")
 
     def destroy_node(self):
         """Clean up all processes and shutdown"""

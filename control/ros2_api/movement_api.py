@@ -106,49 +106,6 @@ class MovementApi(BaseApi):
         """Stop the robot immediately."""
         self.cmd_vel_helper(0.0, 0.0, 0.0)
 
-    def move_continuous(self, linear: float, angular: float):
-        """Send continuous velocity commands without auto-stop."""
-        if not self.check_velocity_limits(linear, angular):
-            return
-        twist = Twist()
-        twist.linear.x = linear
-        twist.angular.z = angular
-        self.cmd_vel_pub.publish(twist)
-
-    def send_cmd_vel(self, linear: float, angular: float):
-        """Send velocity command directly."""
-        if not self.check_velocity_limits(linear, angular):
-            return
-        twist = Twist()
-        twist.linear.x = linear
-        twist.angular.z = angular
-        self.cmd_vel_pub.publish(twist)
-
-    def set_linear_speed(self, speed: float):
-        """Set default linear velocity with safety check."""
-        if self.check_velocity_limits(speed, self.angular):
-            self.config.set_variable("linear_speed", speed)
-
-    def set_angular_speed(self, speed: float):
-        """Set default angular velocity with safety check."""
-        if self.check_velocity_limits(self.linear, speed):
-            self.config.set_variable("angular_speed", speed)
-
-    def get_status(self):
-        """Return current speed settings and limits."""
-        return {
-            "linear": self.linear,
-            "angular": self.angular,
-            "linear_limits": [self.linear_min, self.linear_max],
-            "angular_limits": [self.angular_min, self.angular_max],
-        }
-
-    def get_current_position(self):
-        """Get current x, y position from odometry."""
-        if self.current_pose is None:
-            return None
-        return (self.current_pose.position.x, self.current_pose.position.y)
-
     def check_velocity_limits(self, linear: float, angular: float) -> bool:
         """Check if speeds are within safe limits."""
         linear_ok = self.check_bounds(
@@ -201,6 +158,3 @@ class MovementApi(BaseApi):
         """Callback for battery state updates."""
         self.current_voltage = msg.voltage
 
-    def get_voltage(self):
-        """Get current battery voltage."""
-        return self.current_voltage
