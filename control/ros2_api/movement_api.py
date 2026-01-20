@@ -33,32 +33,42 @@ class MovementApi(BaseApi):
             10,
         )
 
-        self.linear = self.config.get_variable("linear_speed")
-        self.angular = self.config.get_variable("angular_speed")
-        self.angular_max = self.config.get_variable("angular_max")
-        self.angular_min = self.config.get_variable("angular_min")
-        self.linear_min = self.config.get_variable("linear_min")
-        self.linear_max = self.config.get_variable("linear_max")
-
         self._validate_config()
 
         self.current_pose = None
         self.current_voltage = None
 
+    @property
+    def linear(self) -> float:
+        return self.config.get_variable("linear_speed")
+
+    @property
+    def angular(self) -> float:
+        return self.config.get_variable("angular_speed")
+
+    @property
+    def linear_min(self) -> float:
+        return self.config.get_variable("linear_min")
+
+    @property
+    def linear_max(self) -> float:
+        return self.config.get_variable("linear_max")
+
+    @property
+    def angular_min(self) -> float:
+        return self.config.get_variable("angular_min")
+
+    @property
+    def angular_max(self) -> float:
+        return self.config.get_variable("angular_max")
+
     def _validate_config(self):
-        missing = []
-        if self.linear is None:
-            missing.append("linear_speed")
-        if self.angular is None:
-            missing.append("angular_speed")
-        if self.linear_min is None:
-            missing.append("linear_min")
-        if self.linear_max is None:
-            missing.append("linear_max")
-        if self.angular_min is None:
-            missing.append("angular_min")
-        if self.angular_max is None:
-            missing.append("angular_max")
+        required_vars = [
+            "linear_speed", "angular_speed",
+            "linear_min", "linear_max",
+            "angular_min", "angular_max"
+        ]
+        missing = [var for var in required_vars if self.config.get_variable(var) is None]
 
         if missing:
             config_file = self.config.config_file if self.config else "config file"
@@ -117,12 +127,12 @@ class MovementApi(BaseApi):
     def set_linear_speed(self, speed: float):
         """Set default linear velocity with safety check."""
         if self.check_velocity_limits(speed, self.angular):
-            self.linear = speed
+            self.config.set_variable("linear_speed", speed)
 
     def set_angular_speed(self, speed: float):
         """Set default angular velocity with safety check."""
         if self.check_velocity_limits(self.linear, speed):
-            self.angular = speed
+            self.config.set_variable("angular_speed", speed)
 
     def get_status(self):
         """Return current speed settings and limits."""

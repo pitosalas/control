@@ -365,8 +365,11 @@ class RobotController:
         message = "\n".join(output_lines)
         return CommandResponse(True, message, {"maps": list(map_groups.keys())})
 
-    def start_slam(self, use_sim_time: bool = False, **kwargs) -> CommandResponse:
-        return self._start_launch("slam", use_sim_time=use_sim_time, **kwargs)
+    def start_slam(self, use_sim_time: bool = None, **kwargs) -> CommandResponse:
+        # Filter out None values before passing to _start_launch
+        if use_sim_time is not None:
+            kwargs['use_sim_time'] = use_sim_time
+        return self._start_launch("slam", **kwargs)
 
     def launch_file(self, package: str, launch_file: str, **kwargs) -> CommandResponse:
         process_id = self.process.launch_file(package, launch_file, **kwargs)
@@ -496,12 +499,12 @@ class RobotController:
                         mem = parts[3]
                         command = parts[10]
 
-                        # Truncate command to fit in 80 char display
+                        # Truncate command to fit in 120 char display
                         # Format: #  PID    CPU  MEM  COMMAND
                         #         1  12345  1.2  3.4  command text...
                         # Reserve: 2 for number, 7 for PID, 5 for CPU, 5 for MEM = 19 chars
-                        # Leaves ~57 chars for command
-                        max_cmd_len = 57
+                        # Leaves ~101 chars for command
+                        max_cmd_len = 101
                         if len(command) > max_cmd_len:
                             command = command[: max_cmd_len - 3] + "..."
 
@@ -512,16 +515,16 @@ class RobotController:
             if not process_info:
                 return CommandResponse(True, "No ROS processes found")
 
-            # Format output with custom columns to fit 80 chars
+            # Format output
             output_lines = []
             output_lines.append("#  PID     CPU  MEM  COMMAND")
-            output_lines.append("-" * 80)
+            output_lines.append("-" * 120)
 
             for i, proc in enumerate(process_info, 1):
                 line = f"{i:<2} {proc['pid']:<7} {proc['cpu']:>4} {proc['mem']:>4}  {proc['command']}"
                 output_lines.append(line)
 
-            output_lines.append("-" * 80)
+            output_lines.append("-" * 120)
             output_lines.append(f"Total: {len(process_info)} ROS processes")
             output_lines.append("Use 'system kill <PID>' to kill a process")
 
@@ -588,7 +591,11 @@ class RobotController:
 
                 # This is a parent process we want to show
                 command = proc["command"]
-                max_cmd_len = 50  # Reduced to fit PGID column
+                # Truncate command to fit in 120 char display
+                # Format: #  PID    PGID   CPU  MEM  COMMAND
+                # Reserve: 2 for #, 7 for PID, 7 for PGID, 5 for CPU, 5 for MEM = 26 chars
+                # Leaves ~94 chars for command
+                max_cmd_len = 94
                 if len(command) > max_cmd_len:
                     command = command[: max_cmd_len - 3] + "..."
 
@@ -605,16 +612,16 @@ class RobotController:
             if not parent_processes:
                 return CommandResponse(True, "No ros2 launch processes found")
 
-            # Format output with custom columns to fit 80 chars
+            # Format output
             output_lines = []
             output_lines.append("#  PID     PGID    CPU  MEM  COMMAND")
-            output_lines.append("-" * 80)
+            output_lines.append("-" * 120)
 
             for i, proc in enumerate(parent_processes, 1):
                 line = f"{i:<2} {proc['pid']:<7} {proc['pgid']:<7} {proc['cpu']:>4} {proc['mem']:>4}  {proc['command']}"
                 output_lines.append(line)
 
-            output_lines.append("-" * 80)
+            output_lines.append("-" * 120)
             output_lines.append(
                 f"Total: {len(parent_processes)} launch processes (parent processes only)"
             )

@@ -33,30 +33,6 @@ class LaunchConfig:
     description: str
     default_params: Dict[str, str]
 
-
-# Static launch configuration table
-LAUNCH_CONFIGS = {
-    "nav": LaunchConfig(
-        launch_type="nav",
-        command_template="ros2 launch nav2_bringup navigation_launch.py {params}",
-        description="Navigation stack with path planning and obstacle avoidance",
-        default_params={"use_sim_time": "false"},
-    ),
-    "slam": LaunchConfig(
-        launch_type="slam",
-        command_template="ros2 launch slam_toolbox online_async_launch.py {params}",
-        description="SLAM mapping and localization",
-        default_params={"use_sim_time": "false"},
-    ),
-    "map": LaunchConfig(
-        launch_type="map",
-        command_template="ros2 run nav2_map_server map_server {map_args} {params}",
-        description="Map server and map saver for loading and saving maps",
-        default_params={"use_sim_time": "false"},
-    ),
-}
-
-
 class ProcessApi(BaseApi):
     """
     ROS2 process management API for launching and controlling external processes.
@@ -67,11 +43,11 @@ class ProcessApi(BaseApi):
         super().__init__("process_api", config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
 
-        # Load launch templates from config, fallback to hardcoded defaults
+        # Load launch templates from config
         self._load_launch_configs()
 
     def _load_launch_configs(self):
-        """Load launch configurations from config file or use defaults"""
+        """Load launch configurations from config file"""
         templates = self.config.get_launch_templates() if self.config else {}
 
         if templates:
@@ -85,8 +61,9 @@ class ProcessApi(BaseApi):
                     default_params=template.get("default_params", {})
                 )
         else:
-            # Fallback to hardcoded defaults
-            self.launch_configs = LAUNCH_CONFIGS
+            # No launch templates found in config
+            self.launch_configs = {}
+            self.log_warn("No launch_templates found in config file. Launch commands will not be available.")
 
     def get_available_launch_types(self) -> List[str]:
         """Get list of available launch types"""
@@ -96,13 +73,22 @@ class ProcessApi(BaseApi):
         """Get launch configuration for a specific type"""
         return self.launch_configs.get(launch_type)
 
-    def _format_launch_params(self, params: Dict[str, str]) -> str:
-        """Format parameters for launch command"""
+    def _format_launch_params(self, params: Dict[str, str], format_type: str = "ros2") -> str:
+        """
+        Format parameters for launch command
+
+        Args:
+            params: Dictionary of parameters
+            format_type: 'ros2' for 'key:=value' format, 'cli' for '--key value' format
+        """
         if not params:
             return ""
         param_parts = []
         for key, value in params.items():
-            param_parts.append(f"{key}:={value}")
+            if format_type == "cli":
+                param_parts.append(f"--{key} {value}")
+            else:  # ros2 format
+                param_parts.append(f"{key}:={value}")
         return " ".join(param_parts)
 
     def launch_by_type(self, launch_type: str, **params) -> str:
@@ -114,9 +100,9 @@ class ProcessApi(BaseApi):
         # Start with the base command from template
         command = config.command_template
 
-        # Merge default params with provided params
+        # Merge default params with provided params (filter out None values)
         final_params = config.default_params.copy()
-        final_params.update({k: str(v) for k, v in params.items()})
+        final_params.update({k: str(v) for k, v in params.items() if v is not None})
 
         # Handle map parameter - resolve to full path if it's just a filename
         if "map" in final_params:
@@ -146,16 +132,26 @@ class ProcessApi(BaseApi):
 
         # Add parameters to command
         if final_params:
-            params_str = self._format_launch_params(final_params)
-            if params_str:
+            # Detect if command is a "bl" (better_launch) command (starts with two letters "bl")
+            is_bl_command = command.strip().split()[0] == "bl"
+
+            if is_bl_command:
+                # For bl commands, use CLI format: --param value
+                params_str = self._format_launch_params(final_params, format_type="cli")
+                if params_str:
+                    command += f" {params_str}"
+            elif "ros2 run" in command:
                 # For ros2 run commands, use --ros-args -p format
-                if "ros2 run" in command:
+                params_str = self._format_launch_params(final_params, format_type="ros2")
+                if params_str:
                     if "--ros-args" not in command:
                         command += " --ros-args"
                     for param in params_str.split():
                         command += f" -p {param}"
-                else:
-                    # For ros2 launch commands, append params directly
+            else:
+                # For ros2 launch commands, use param:=value format
+                params_str = self._format_launch_params(final_params, format_type="ros2")
+                if params_str:
                     command += f" {params_str}"
 
         self.log_debug(f"Launching {launch_type}: {command}")
@@ -270,7 +266,7 @@ class ProcessApi(BaseApi):
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                preexec_fn=os.setpgrp,  # Create process group for clean killing
+                start_new_session=True,  # Detach from terminal and create new process group
             )
 
             process_info = ProcessInfo(
@@ -448,8 +444,11 @@ class ProcessApi(BaseApi):
             return False
 
     def _capture_output(self, process_id: str, process_info: ProcessInfo):
-        """Capture output in background thread and write to log file if configured"""
+        """Capture initial output then detach from process"""
         log_file_handle = None
+        max_initial_lines = 20  # Capture first 20 lines then detach
+        lines_captured = 0
+
         try:
             # Open log file if configured
             if process_info.log_file:
@@ -459,9 +458,18 @@ class ProcessApi(BaseApi):
                 log_file_handle.write(f"PID: {process_info.pid}\n")
                 log_file_handle.write(f"Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(process_info.start_time))}\n")
                 log_file_handle.write(f"==================\n\n")
+                log_file_handle.write(f">> Initial output (first {max_initial_lines} lines):\n\n")
                 log_file_handle.flush()
 
+            # Capture initial output with timeout
+            start_time = time.time()
+            timeout_seconds = 3.0  # Wait up to 3 seconds for initial output
+
             for line in iter(process_info.process.stdout.readline, ""):
+                # Check timeout
+                if time.time() - start_time > timeout_seconds:
+                    break
+
                 if line:
                     stripped_line = line.strip()
                     process_info.output.append(stripped_line)
@@ -471,20 +479,37 @@ class ProcessApi(BaseApi):
                         log_file_handle.write(line)
                         log_file_handle.flush()
 
-                # Check if process has ended
+                    lines_captured += 1
+
+                    # Stop after capturing initial lines
+                    if lines_captured >= max_initial_lines:
+                        break
+
+                # Check if process has ended early
                 if process_info.process.poll() is not None:
                     break
+
         except Exception as e:
             self.log_error(f"Error capturing output for process {process_id}: {e}")
         finally:
-            # Close log file
+            # Close log file with detachment notice
             if log_file_handle:
-                log_file_handle.write(f"\n=== Process Ended ===\n")
-                log_file_handle.write(f"Ended: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                log_file_handle.write(f"\n{'='*50}\n")
+                log_file_handle.write(f"Process detached from control.py monitoring.\n")
+                log_file_handle.write(f"The process continues to run independently (PID: {process_info.pid}).\n")
+                log_file_handle.write(f"Check system logs for continued output.\n")
+                log_file_handle.write(f"Detached at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                log_file_handle.write(f"{'='*50}\n")
                 log_file_handle.close()
 
-            process_info.is_running = False
-            self.log_debug(f"Process {process_id} finished")
+            # Close stdout to fully detach
+            try:
+                process_info.process.stdout.close()
+            except:
+                pass
+
+            # Mark as no longer being monitored (but still running)
+            self.log_debug(f"Process {process_id} detached after capturing {lines_captured} lines")
 
     def cleanup_finished_processes(self):
         """Remove finished processes from tracking"""

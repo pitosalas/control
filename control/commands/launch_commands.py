@@ -31,8 +31,8 @@ def build_launch_commands() -> dict[str, cd.CommandDef]:
             method_name="launch_start",
             parameters=[
                 pd.ParameterDef("launch_type", str, True, None, "Launch type (nav, slam, map)"),
-                pd.ParameterDef("use_sim_time", bool, False, False,
-                              "Use simulation time (use --sim-time flag)"),
+                pd.ParameterDef("use_sim_time", bool, False, None,
+                              "Use simulation time (use --use-sim-time flag)"),
                 pd.ParameterDef("map", str, False, None,
                               "Map filename (without extension) in maps directory"),
                 pd.ParameterDef("map_name", str, False, None,
