@@ -1,25 +1,38 @@
 #!/usr/bin/env python3
+"""
+ROS2 calibration API for robot movement patterns and testing
+Author: Pito Salas and Claude Code
+Open Source Under MIT license
+"""
+
 import math
 import time
 
 import rclpy
 
-from ..commands.config_manager import ConfigManager
-from .base_api import BaseApi
-from .movement_api import MovementApi
+import control.commands.config_manager as cm
+import control.ros2_api.base_api as base
+import control.ros2_api.movement_api as movement
 
 
-class CalibrationApi(BaseApi):
+class CalibrationApi(base.BaseApi):
     """ROS2 calibration API for robot movement patterns and testing.
     Provides predefined movement patterns for calibration purposes.
     """
 
-    def __init__(self, movement_api: MovementApi, config_manager: ConfigManager):
+    def __init__(self, movement_api: movement.MovementApi, config_manager: cm.ConfigManager):
         super().__init__("calibration_api", config_manager)
         self.movement = movement_api
 
+    def _print_elapsed_time(self, current_time, start_time, last_print_time):
+        if current_time - last_print_time >= 10:
+            elapsed = current_time - start_time
+            print(f"Elapsed time: {elapsed:.1f}s")
+            self.log_info(f"Elapsed time: {elapsed:.1f}s")
+            return current_time
+        return last_print_time
+
     def run_square_pattern(self, side_length: float):
-        """Move robot in a square pattern."""
         self.log_info(f"Starting square pattern with {side_length}m sides")
 
         for i in range(4):
@@ -30,7 +43,6 @@ class CalibrationApi(BaseApi):
         self.log_info("Square pattern completed")
 
     def run_rotate_stress(self):
-        """Run continuous rotation stress test."""
         self.log_info("Starting rotation stress test - Press Ctrl+C to stop")
 
         # Get rotation speed from config
@@ -50,13 +62,8 @@ class CalibrationApi(BaseApi):
             while rclpy.ok():
                 cycle += 1
 
-                # Print elapsed time every 10 seconds
                 current_time = time.time()
-                if current_time - last_print_time >= 10:
-                    elapsed = current_time - start_time
-                    print(f"Elapsed time: {elapsed:.1f}s")
-                    self.log_info(f"Elapsed time: {elapsed:.1f}s")
-                    last_print_time = current_time
+                last_print_time = self._print_elapsed_time(current_time, start_time, last_print_time)
 
                 self.log_info(f"Starting {num_rotations} rotations...")
                 for rotation in range(num_rotations):
@@ -74,7 +81,6 @@ class CalibrationApi(BaseApi):
         self.movement.stop()
 
     def run_circle_stress(self, diameter: float):
-        """Run continuous circle stress test with specified diameter."""
         radius = diameter / 2.0
         self.log_info(
             f"Starting circle stress test - diameter {diameter}m (radius {radius}m) - Press Ctrl+C to stop"
@@ -96,12 +102,8 @@ class CalibrationApi(BaseApi):
             while rclpy.ok():
                 cycle += 1
 
-                # Print elapsed time every 10 seconds
                 current_time = time.time()
-                if current_time - last_print_time >= 10:
-                    elapsed = current_time - start_time
-                    print(f"Elapsed time: {elapsed:.1f}s")
-                    last_print_time = current_time
+                last_print_time = self._print_elapsed_time(current_time, start_time, last_print_time)
 
                 # Calculate time for one complete circle
                 circumference = 2 * math.pi * radius

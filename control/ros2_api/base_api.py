@@ -4,7 +4,7 @@ from abc import ABC
 import rclpy
 from rclpy.node import Node
 
-from ..commands.config_manager import ConfigManager
+import control.commands.config_manager as cm
 
 
 class BaseApi(Node, ABC):
@@ -13,12 +13,12 @@ class BaseApi(Node, ABC):
     Handles ROS2 initialization, config management, and common utilities.
     """
 
-    def __init__(self, node_name: str, config_manager: ConfigManager = None):
+    def __init__(self, node_name: str, config_manager: cm.ConfigManager = None):
         if not rclpy.ok():
             rclpy.init()
         super().__init__(node_name)
 
-        self.config = config_manager or ConfigManager()
+        self.config = config_manager or cm.ConfigManager()
 
     def get_topics(self):
         return self.get_topic_names_and_types()

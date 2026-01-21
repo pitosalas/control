@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Main entry point for running the control CLI."""
 
-# New simple parser CLI (default)
-from .interface.simple_cli import main as simple_cli_main
+import control.interface.simple_cli as cli
 
 # Old Click-based CLI (kept for reference)
 # from .interface.cli_interface import CLIInterface
@@ -14,7 +13,7 @@ from .interface.simple_cli import main as simple_cli_main
 
 def main():
     """Run the CLI interface using SimpleCLI."""
-    simple_cli_main()
+    cli.main()
 
 if __name__ == "__main__":
     main()

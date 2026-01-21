@@ -7,16 +7,16 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import BatteryState
 
-from ..commands.config_manager import ConfigManager
-from .base_api import BaseApi
+import control.commands.config_manager as cm
+import control.ros2_api.base_api as base
 
 
-class MovementApi(BaseApi):
+class MovementApi(base.BaseApi):
     """ROS2 movement API for robot velocity control and odometry.
     Provides safe velocity commands with automatic stopping.
     """
 
-    def __init__(self, config_manager: ConfigManager = None):
+    def __init__(self, config_manager: cm.ConfigManager = None):
         super().__init__("movement_api", config_manager)
 
         self.cmd_vel_pub = self.create_publisher(Twist, "/cmd_vel", 1)

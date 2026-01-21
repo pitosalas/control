@@ -19,12 +19,6 @@ from control.interface.simple_parser import ParsedCommand, SimpleCommandParser
 
 
 class SimpleCLI:
-    """
-    Command-line interface using SimpleCommandParser.
-
-    Provides interactive REPL for robot control commands.
-    Simpler alternative to Click-based CLI.
-    """
 
     def __init__(self):
         self.parser = SimpleCommandParser()
@@ -40,22 +34,6 @@ class SimpleCLI:
         self.prompt_history = FileHistory(str(history_file))
 
     def _map_to_dispatcher_format(self, parsed: ParsedCommand):
-        """
-        Map ParsedCommand to CommandDispatcher format.
-
-        Args:
-            parsed: ParsedCommand from parser
-
-        Returns:
-            (command_name, params_dict) for dispatcher
-
-        Examples:
-            ParsedCommand("move", "forward", [1.5])
-                -> ("move.forward", {"meters": 1.5})
-            ParsedCommand("config", "set", ["linear_speed", 0.5])
-                -> ("config.set", {"name": "linear_speed", "value": 0.5})
-
-        """
         # Build command name
         if parsed.subcommand:
             command_name = f"{parsed.command}.{parsed.subcommand}"
@@ -78,7 +56,6 @@ class SimpleCLI:
         return command_name, params
 
     def _load_help_file(self, filename: str):
-        """Load help text from docs directory."""
         # Resolve symlinks to get actual source directory
         module_path = Path(__file__).resolve()
         docs_dir = module_path.parent.parent.parent / "docs"
@@ -88,67 +65,71 @@ class SimpleCLI:
             return help_file.read_text()
         return None
 
-    def _handle_help(self, parsed: ParsedCommand):
-        # Parser treats "help move forward" as:
-        #   command="help", subcommand="move", arguments=["forward"]
-        # So we need to reconstruct the command name from subcommand + arguments
+    def _show_subcommand_suggestions(self, command_name, header, footer=None):
+        suggestions = [
+            cmd for cmd in self.dispatcher.commands.keys()
+            if cmd.startswith(f"{command_name}.")
+        ]
+        if not suggestions:
+            return False
 
-        # Special case: "help commands" - list all commands alphabetically
+        print(header)
+        for suggestion in sorted(suggestions):
+            cmd_def = self.dispatcher.commands[suggestion]
+            subcommand = suggestion.split(".", 1)[1]
+            print(f"  {command_name} {subcommand:<20} - {cmd_def.description}")
+        if footer:
+            print(footer)
+        return True
+
+    def _show_all_commands(self):
+        print("All Available Commands (alphabetical):")
+        print("=" * 70)
+        for cmd_name in sorted(self.dispatcher.commands.keys()):
+            cmd_def = self.dispatcher.commands[cmd_name]
+            display_name = cmd_name.replace(".", " ")
+            print(f"  {display_name:<30} - {cmd_def.description}")
+        print("\nFor detailed help on any command: help <command> <subcommand>")
+
+    def _show_specific_help(self, parsed: ParsedCommand):
+        if parsed.arguments:
+            filename = f"{parsed.subcommand}.{parsed.arguments[0]}.txt"
+        else:
+            filename = f"{parsed.subcommand}.txt"
+
+        help_text = self._load_help_file(filename)
+        if help_text:
+            print(help_text)
+            return
+
+        command_name = parsed.subcommand
+        found = self._show_subcommand_suggestions(
+            command_name,
+            f"Available '{command_name}' commands:",
+            f"\nFor detailed help, use: help {command_name} <subcommand>"
+        )
+        if not found:
+            command_str = (
+                f"{parsed.subcommand} {parsed.arguments[0]}"
+                if parsed.arguments
+                else parsed.subcommand
+            )
+            print(f"No help available for: {command_str}")
+
+    def _handle_help(self, parsed: ParsedCommand):
         if parsed.arguments and len(parsed.arguments) == 1 and parsed.arguments[0] == "commands":
-            print("All Available Commands (alphabetical):")
-            print("=" * 70)
-            for cmd_name in sorted(self.dispatcher.commands.keys()):
-                cmd_def = self.dispatcher.commands[cmd_name]
-                # Format: "command.subcommand" becomes "command subcommand"
-                display_name = cmd_name.replace(".", " ")
-                print(f"  {display_name:<30} - {cmd_def.description}")
-            print("\nFor detailed help on any command: help <command> <subcommand>")
+            self._show_all_commands()
             return
 
         if parsed.subcommand:
-            # "help move forward" case
-            if parsed.arguments:
-                # Two-part command: "move.forward"
-                filename = f"{parsed.subcommand}.{parsed.arguments[0]}.txt"
-            else:
-                # Single-part command: "move"
-                filename = f"{parsed.subcommand}.txt"
-
-            help_text = self._load_help_file(filename)
-            if help_text:
-                print(help_text)
-            else:
-                # If no help file found, try showing available subcommands
-                command_name = parsed.subcommand
-                suggestions = [
-                    cmd for cmd in self.dispatcher.commands.keys()
-                    if cmd.startswith(f"{command_name}.")
-                ]
-                if suggestions:
-                    print(f"Available '{command_name}' commands:")
-                    for suggestion in sorted(suggestions):
-                        cmd_def = self.dispatcher.commands[suggestion]
-                        subcommand = suggestion.split(".", 1)[1]
-                        print(f"  {command_name} {subcommand:<20} - {cmd_def.description}")
-                    print(f"\nFor detailed help, use: help {command_name} <subcommand>")
-                else:
-                    command_str = (
-                        f"{parsed.subcommand} {parsed.arguments[0]}"
-                        if parsed.arguments
-                        else parsed.subcommand
-                    )
-                    print(f"No help available for: {command_str}")
+            self._show_specific_help(parsed)
         else:
-            # General help - load index file
             help_text = self._load_help_file("_index.txt")
             if help_text:
                 print(help_text)
             else:
                 print("Help documentation not found.")
 
-    def _handle_exit(self):
-        print("Goodbye!")
-        self.running = False
 
     def execute_command(self, input_text: str):
         if not input_text.strip():
@@ -166,7 +147,8 @@ class SimpleCLI:
             return
 
         if parsed.command == "exit":
-            self._handle_exit()
+            print("Goodbye!")
+            self.running = False
             return
 
         # Map to dispatcher format and execute
@@ -182,16 +164,10 @@ class SimpleCLI:
             print(f"✗ {result.message}")
             # If command not found, suggest available subcommands
             if "Unknown command" in result.message and "." not in command_name:
-                suggestions = [
-                    cmd for cmd in self.dispatcher.commands.keys()
-                    if cmd.startswith(f"{command_name}.")
-                ]
-                if suggestions:
-                    print(f"Did you mean one of these?")
-                    for suggestion in sorted(suggestions):
-                        cmd_def = self.dispatcher.commands[suggestion]
-                        subcommand = suggestion.split(".", 1)[1]
-                        print(f"  {command_name} {subcommand} - {cmd_def.description}")
+                self._show_subcommand_suggestions(
+                    command_name,
+                    "Did you mean one of these?"
+                )
 
     def _print_data(self, data):
         if isinstance(data, dict):
@@ -208,19 +184,12 @@ class SimpleCLI:
             print(data)
 
     def _log_command(self, command: str):
-        """Log command with timestamp to command_history.txt."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         with open(self.command_history_file, "a") as f:
             f.write(f"\n# {timestamp}\n")
             f.write(f"+{command}\n")
 
     def repl(self):
-        """
-        Run interactive Read-Eval-Print Loop.
-
-        Reads commands from user, executes them, and displays results.
-        Exits on 'exit' command or Ctrl+D.
-        """
         print("Robot Control CLI (Simple Parser)")
         print("Type 'help' for available commands, 'exit' to quit")
         print()
@@ -243,31 +212,22 @@ class SimpleCLI:
             except EOFError:
                 # Ctrl+D
                 print()
-                self._handle_exit()
+                print("Goodbye!")
+                self.running = False
             except KeyboardInterrupt:
                 # Ctrl+C
                 print()
                 print("Use 'exit' to quit")
-            except Exception as e:
-                print(f"Error: {e}")
 
-    def run_command(self, command: str):
-        self.execute_command(command)
 
 
 def main():
-    """
-    Entry point for robot control CLI.
-
-    Runs in interactive REPL mode if no args provided,
-    or executes single command from command-line args.
-    """
     cli = SimpleCLI()
 
     if len(sys.argv) > 1:
         # Non-interactive: execute command from args
         command = " ".join(sys.argv[1:])
-        cli.run_command(command)
+        cli.execute_command(command)
     else:
         # Interactive REPL
         cli.repl()

@@ -47,7 +47,16 @@ All commands route through `RobotController` (646 lines after cleanup).
 - System commands (topics, processes, kill)
 - **67 passing tests** (updated Jan 2026)
 
-### Recent Changes (Jan 21)
+### Recent Changes (Jan 21, Session 2)
+**Applied RULES.md to codebase:**
+- Fixed all relative imports to absolute imports with module aliases
+- `simple_cli.py`: Fixed bare except, split long methods, removed unnecessary docstrings, eliminated code duplication
+- `simple_parser.py`: Restructured abbreviations to support multiple per command (q/x for exit), removed 2-line methods, removed demo code (317→165 lines)
+- `calibration_api.py`: Fixed header comments, removed unnecessary docstrings, eliminated code duplication, fixed elapsed time bug
+- Removed `test_process_api_simple.py` (manual test artifact)
+- All 67 tests passing
+
+### Recent Changes (Jan 21, Session 1)
 - Process termination now uses SIGINT (Ctrl+C equivalent) instead of SIGTERM→SIGKILL
 - Output capture is now continuous until process ends (was limited to first 20 lines)
 - Added `CommandConfig` dataclass for `run_command_sync`
@@ -57,9 +66,8 @@ All commands route through `RobotController` (646 lines after cleanup).
 ### Known Issues
 
 **Code Quality:**
-1. Bare `except Exception` in simple_cli.py line 220
-2. `robot_controller.py` still 646 lines (over 300 line RULES.md limit)
-3. Debug print statements in robot_controller.py and process_api.py (should be removed or converted to proper logging)
+1. `robot_controller.py` still 646 lines (over 300 line RULES.md limit)
+2. Debug print statements in robot_controller.py and process_api.py (should be removed or converted to proper logging)
 
 ### Test Suite
 - `test_command_dispatcher.py` - 12 tests
@@ -74,12 +82,13 @@ Run with: `python3 -m pytest test/ -v --ignore=test/__init__.py`
 ## File Locations
 
 ### Source Code
-- `control/interface/simple_cli.py` - Active CLI
+- `control/interface/simple_cli.py` - Active CLI (237 lines)
+- `control/interface/simple_parser.py` - Command parser (142 lines)
 - `control/commands/robot_controller.py` - Main controller (646 lines)
 - `control/commands/*_commands.py` - Command definitions
 - `control/ros2_api/process_api.py` - Process management (483 lines)
 - `control/ros2_api/movement_api.py` - Robot movement (160 lines)
-- `control/ros2_api/calibration_api.py` - Calibration/scripts (118 lines)
+- `control/ros2_api/calibration_api.py` - Calibration/scripts (120 lines)
 
 ### User Data
 - `~/.control/config.yaml` - Configuration
@@ -90,11 +99,12 @@ Run with: `python3 -m pytest test/ -v --ignore=test/__init__.py`
 
 ### High Priority
 1. Split robot_controller.py (646 lines, limit is 300)
-2. Fix bare except in simple_cli.py
+2. Apply RULES.md to remaining files (command files, APIs)
 
 ### Medium Priority
 1. Remove click_cli.py (deprecated)
-2. Add more specific exception handling
+2. Clean up debug print statements
+3. Add more specific exception handling
 
 ### Low Priority
 1. Validate map file existence before operations
