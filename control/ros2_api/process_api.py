@@ -6,13 +6,17 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional
 
-import rclpy
 
-from ..commands.config_manager import ConfigManager
-from .base_api import BaseApi
+@dataclass
+class CommandConfig:
+    command: str
+    log_name: Optional[str]
+    timeout: float
+
+from control.commands.config_manager import ConfigManager
+from control.ros2_api.base_api import BaseApi
 
 
 @dataclass
@@ -39,7 +43,7 @@ class ProcessApi(BaseApi):
     Handles launch files, shell commands, and process lifecycle management.
     """
 
-    def __init__(self, config_manager: ConfigManager = None):
+    def __init__(self, config_manager: ConfigManager):
         super().__init__("process_api", config_manager)
         self.processes: Dict[str, ProcessInfo] = {}
 
@@ -73,7 +77,7 @@ class ProcessApi(BaseApi):
         """Get launch configuration for a specific type"""
         return self.launch_configs.get(launch_type)
 
-    def _format_launch_params(self, params: Dict[str, str], format_type: str = "ros2") -> str:
+    def _format_launch_params(self, params: Dict[str, str], format_type: str) -> str:
         """
         Format parameters for launch command
 
@@ -97,20 +101,17 @@ class ProcessApi(BaseApi):
         if not config:
             raise ValueError(f"Unknown launch type: {launch_type}")
 
-        # Start with the base command from template
         command = config.command_template
-
-        # Merge default params with provided params (filter out None values)
         final_params = config.default_params.copy()
         final_params.update({k: str(v) for k, v in params.items() if v is not None})
 
         # Handle map parameter - resolve to full path if it's just a filename
         if "map" in final_params:
             map_value = final_params["map"]
-            # If it's not already an absolute path, resolve it in maps directory
-            if not map_value.startswith("/"):
+            if map_value.startswith("/"):
+                pass
+            else:
                 maps_dir = self.config.get_maps_dir()
-                # Remove .yaml extension if present, we'll add it
                 map_name = map_value.replace(".yaml", "")
                 map_file = maps_dir / f"{map_name}.yaml"
                 if map_file.exists():
@@ -127,32 +128,30 @@ class ProcessApi(BaseApi):
                 raise ValueError(f"Map file not found: {map_file}")
             map_file_abs = map_file.resolve()
             command += f" --ros-args -p yaml_filename:={map_file_abs}"
-            # Remove map_name from final_params if it exists
             final_params.pop("map_name", None)
 
-        # Add parameters to command
-        if final_params:
-            # Detect if command is a "bl" (better_launch) command (starts with two letters "bl")
-            is_bl_command = command.strip().split()[0] == "bl"
+        # Add parameters to command (flattened logic)
+        if not final_params:
+            self.log_debug(f"Launching {launch_type}: {command}")
+            return self.launch_command(command, log_name=launch_type)
 
-            if is_bl_command:
-                # For bl commands, use CLI format: --param value
-                params_str = self._format_launch_params(final_params, format_type="cli")
-                if params_str:
-                    command += f" {params_str}"
-            elif "ros2 run" in command:
-                # For ros2 run commands, use --ros-args -p format
-                params_str = self._format_launch_params(final_params, format_type="ros2")
-                if params_str:
-                    if "--ros-args" not in command:
-                        command += " --ros-args"
-                    for param in params_str.split():
-                        command += f" -p {param}"
-            else:
-                # For ros2 launch commands, use param:=value format
-                params_str = self._format_launch_params(final_params, format_type="ros2")
-                if params_str:
-                    command += f" {params_str}"
+        is_bl_command = command.strip().split()[0] == "bl"
+        params_str = ""
+        if is_bl_command:
+            params_str = self._format_launch_params(final_params, format_type="cli")
+            if params_str:
+                command += f" {params_str}"
+        elif "ros2 run" in command:
+            params_str = self._format_launch_params(final_params, format_type="ros2")
+            if params_str:
+                if "--ros-args" not in command:
+                    command += " --ros-args"
+                for param in params_str.split():
+                    command += f" -p {param}"
+        else:
+            params_str = self._format_launch_params(final_params, format_type="ros2")
+            if params_str:
+                command += f" {params_str}"
 
         self.log_debug(f"Launching {launch_type}: {command}")
         return self.launch_command(command, log_name=launch_type)
@@ -165,7 +164,7 @@ class ProcessApi(BaseApi):
 
         return self.kill_process(tracked_process_id)
 
-    def get_launch_status(self, launch_type: str = None) -> Dict:
+    def get_launch_status(self, launch_type: str) -> Dict:
         """Get status of launch processes"""
         if launch_type:
             # Return status for specific launch type (requires external tracking)
@@ -175,49 +174,43 @@ class ProcessApi(BaseApi):
             # Return status for all tracked processes
             return self.get_running_processes()
 
-    def run_command_sync(self, command: str, log_name: Optional[str] = None, timeout: float = 30.0) -> tuple[bool, str, Optional[str]]:
+    def run_command_sync(self, config: CommandConfig) -> tuple[bool, str, Optional[str]]:
         """
         Run a command synchronously and wait for completion.
         Returns (success, output, log_file_path) tuple.
-
         Args:
-            command: Shell command to run
-            log_name: Optional name for log file (e.g., 'map_save')
-            timeout: Timeout in seconds (default 30)
-
+            config: CommandConfig dataclass with command, log_name, timeout
         Returns:
             Tuple of (success: bool, output: str, log_file_path: Optional[str])
         """
-        self.log_debug(f"Running command: {command}")
+        self.log_debug(f"Running command: {config.command}")
 
-        # Create log file if log_name is provided
         log_file_path = None
-        if log_name:
+        if config.log_name:
             self.config.ensure_subdirs()
             log_dir_config = self.config.get_variable("log_dir") or "logs"
             logs_dir = self.config.resolve_path(log_dir_config)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            log_file_path = str(logs_dir / f"{log_name}_{timestamp}.log")
+            log_file_path = str(logs_dir / f"{config.log_name}_{timestamp}.log")
 
         try:
             start_time = time.time()
             result = subprocess.run(
-                command,
+                config.command,
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=config.timeout
             )
 
             output = result.stdout + result.stderr
             success = result.returncode == 0
 
-            # Write to log file if configured
             if log_file_path:
                 try:
                     with open(log_file_path, 'w') as f:
                         f.write(f"=== Command Log ===\n")
-                        f.write(f"Command: {command}\n")
+                        f.write(f"Command: {config.command}\n")
                         f.write(f"Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n")
                         f.write(f"Return Code: {result.returncode}\n")
                         f.write(f"==================\n\n")
@@ -235,7 +228,7 @@ class ProcessApi(BaseApi):
             return (success, output, log_file_path)
 
         except subprocess.TimeoutExpired:
-            error_msg = f"Command timed out after {timeout} seconds"
+            error_msg = f"Command timed out after {config.timeout} seconds"
             self.log_error(error_msg)
             return (False, error_msg, log_file_path)
         except Exception as e:
@@ -243,8 +236,8 @@ class ProcessApi(BaseApi):
             self.log_error(error_msg)
             return (False, error_msg, log_file_path)
 
-    def launch_command(self, command: str, log_name: Optional[str] = None) -> str:
-        """Launch shell command and return process ID"""
+    def launch_command(self, command: str, log_name: Optional[str]) -> str:
+        print(f"[DEBUG] launch_command called with log_name={log_name}")
         process_id = str(uuid.uuid4())
 
         self.log_debug(f"Launching: {command}")
@@ -257,6 +250,7 @@ class ProcessApi(BaseApi):
             logs_dir = self.config.resolve_path(log_dir_config)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             log_file_path = str(logs_dir / f"{log_name}_{timestamp}.log")
+        print(f"[DEBUG] log_file_path resolved to: {log_file_path}")
 
         try:
             proc = subprocess.Popen(
@@ -264,6 +258,7 @@ class ProcessApi(BaseApi):
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,  # Detach stdin from terminal
                 text=True,
                 bufsize=1,
                 start_new_session=True,  # Detach from terminal and create new process group
@@ -278,27 +273,36 @@ class ProcessApi(BaseApi):
                 start_time=time.time(),
                 log_file=log_file_path,
             )
-
-            # Start output capture thread
-            threading.Thread(
-                target=self._capture_output,
-                args=(process_id, process_info),
-                daemon=True,
-            ).start()
-
             self.processes[process_id] = process_info
             if log_file_path:
                 self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}, Log: {log_file_path}")
             else:
                 self.log_debug(f"Process launched with ID: {process_id}, PID: {proc.pid}")
+
+            # Always start a thread to capture output and print to console in real time
+            output_thread = threading.Thread(target=self._capture_output, args=(process_id, process_info), daemon=True)
+            output_thread.start()
+
+            print(f"[DEBUG] Returning from launch_command, process_id={process_id}")
             return process_id
 
         except Exception as e:
+            # If Popen itself fails, log the error to the log file if possible
             self.log_error(f"Failed to launch command '{command}': {e}")
+            if log_file_path:
+                print(f"[DEBUG] Attempting to write exception log file: {log_file_path}")
+                try:
+                    with open(log_file_path, 'w') as f:
+                        f.write(f"Failed to launch command: {e}\n")
+                    print(f"[DEBUG] Successfully wrote exception log file: {log_file_path}")
+                    self.log_debug(f"[launch_command] Exception info written to log file: {log_file_path}")
+                except Exception as ex:
+                    print(f"[DEBUG] Failed to write exception log file: {log_file_path}, error: {ex}")
+            print(f"[DEBUG] Raising exception in launch_command")
             raise
 
     def kill_process(self, process_id: str) -> bool:
-        """Kill process and all children (Ctrl+C equivalent)"""
+        """Gracefully stop process with Ctrl+C (SIGINT), capture all output, and write to log file."""
         if process_id not in self.processes:
             self.log_warn(f"Process ID {process_id} not found")
             return False
@@ -309,34 +313,27 @@ class ProcessApi(BaseApi):
             return True
 
         try:
-            self.log_debug(f"Terminating process {process_id}: {proc_info.command}")
+            self.log_debug(f"Sending SIGINT to process {process_id}: {proc_info.command}")
+            proc_info.process.send_signal(signal.SIGINT)
+            stdout, _ = proc_info.process.communicate()
+            proc_info.is_running = False
 
-            # Kill process group (handles launch files with multiple nodes)
-            try:
-                os.killpg(os.getpgid(proc_info.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                # Process already dead
-                proc_info.is_running = False
-                return True
-
-            # Wait for graceful shutdown
-            try:
-                proc_info.process.wait(timeout=5)
-                self.log_debug(f"Process {process_id} terminated gracefully")
-            except subprocess.TimeoutExpired:
-                self.log_warn(f"Force killing process {process_id}")
+            # Write output to log file if specified
+            if proc_info.log_file:
+                print(f"[DEBUG] Attempting to write graceful shutdown log file: {proc_info.log_file}")
                 try:
-                    os.killpg(os.getpgid(proc_info.pid), signal.SIGKILL)
-                    proc_info.process.wait(timeout=2)
-                except (ProcessLookupError, subprocess.TimeoutExpired):
-                    pass
+                    with open(proc_info.log_file, 'w') as f:
+                        f.write(stdout)
+                    print(f"[DEBUG] Successfully wrote graceful shutdown log file: {proc_info.log_file}")
+                    self.log_debug(f"Output written to log file: {proc_info.log_file}")
+                except Exception as e:
+                    print(f"[DEBUG] Failed to write graceful shutdown log file: {proc_info.log_file}, error: {e}")
 
+            self.log_debug(f"Process {process_id} terminated gracefully with SIGINT")
+            return True
         except Exception as e:
-            self.log_error(f"Error killing process {process_id}: {e}")
+            self.log_error(f"Error stopping process {process_id}: {e}")
             return False
-
-        proc_info.is_running = False
-        return True
 
     def kill_all_processes(self) -> int:
         """Kill all managed processes"""
@@ -347,7 +344,7 @@ class ProcessApi(BaseApi):
         return killed_count
 
     def get_process_output(
-        self, process_id: str, lines: Optional[int] = None
+        self, process_id: str, lines: Optional[int]
     ) -> List[str]:
         """Get captured output from process"""
         if process_id not in self.processes:
@@ -409,11 +406,8 @@ class ProcessApi(BaseApi):
         return True
 
     def _capture_output(self, process_id: str, process_info: ProcessInfo):
-        """Capture initial output then detach from process"""
+        """Continuously capture all output, log to file, and print to console until process ends."""
         log_file_handle = None
-        max_initial_lines = 20  # Capture first 20 lines then detach
-        lines_captured = 0
-
         try:
             # Open log file if configured
             if process_info.log_file:
@@ -423,34 +417,21 @@ class ProcessApi(BaseApi):
                 log_file_handle.write(f"PID: {process_info.pid}\n")
                 log_file_handle.write(f"Started: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(process_info.start_time))}\n")
                 log_file_handle.write(f"==================\n\n")
-                log_file_handle.write(f">> Initial output (first {max_initial_lines} lines):\n\n")
                 log_file_handle.flush()
 
-            # Capture initial output with timeout
-            start_time = time.time()
-            timeout_seconds = 3.0  # Wait up to 3 seconds for initial output
-
+            # Continuously read and log output until process ends
             for line in iter(process_info.process.stdout.readline, ""):
-                # Check timeout
-                if time.time() - start_time > timeout_seconds:
+                if not line:
                     break
-
-                if line:
-                    stripped_line = line.strip()
-                    process_info.output.append(stripped_line)
-
-                    # Write to log file if configured
-                    if log_file_handle:
-                        log_file_handle.write(line)
-                        log_file_handle.flush()
-
-                    lines_captured += 1
-
-                    # Stop after capturing initial lines
-                    if lines_captured >= max_initial_lines:
-                        break
-
-                # Check if process has ended early
+                stripped_line = line.rstrip()
+                process_info.output.append(stripped_line)
+                # Write to log file if configured
+                if log_file_handle:
+                    log_file_handle.write(line)
+                    log_file_handle.flush()
+                # Print to console
+                print(f"[PROCESS {process_id}] {stripped_line}")
+                # Check if process has ended
                 if process_info.process.poll() is not None:
                     break
 
@@ -460,21 +441,16 @@ class ProcessApi(BaseApi):
             # Close log file with detachment notice
             if log_file_handle:
                 log_file_handle.write(f"\n{'='*50}\n")
-                log_file_handle.write(f"Process detached from control.py monitoring.\n")
-                log_file_handle.write(f"The process continues to run independently (PID: {process_info.pid}).\n")
-                log_file_handle.write(f"Check system logs for continued output.\n")
-                log_file_handle.write(f"Detached at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                log_file_handle.write(f"Process output capture complete.\n")
+                log_file_handle.write(f"Ended at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 log_file_handle.write(f"{'='*50}\n")
                 log_file_handle.close()
-
-            # Close stdout to fully detach
+            # Close stdout
             try:
                 process_info.process.stdout.close()
             except:
                 pass
-
-            # Mark as no longer being monitored (but still running)
-            self.log_debug(f"Process {process_id} detached after capturing {lines_captured} lines")
+            self.log_debug(f"Process {process_id} output capture finished.")
 
     def destroy_node(self):
         """Clean up all processes and shutdown"""

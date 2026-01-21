@@ -47,11 +47,19 @@ All commands route through `RobotController` (646 lines after cleanup).
 - System commands (topics, processes, kill)
 - **67 passing tests** (updated Jan 2026)
 
+### Recent Changes (Jan 21)
+- Process termination now uses SIGINT (Ctrl+C equivalent) instead of SIGTERM→SIGKILL
+- Output capture is now continuous until process ends (was limited to first 20 lines)
+- Added `CommandConfig` dataclass for `run_command_sync`
+- Added debug logging throughout launch system
+- Added `stdin=subprocess.DEVNULL` to detach launched processes from terminal
+
 ### Known Issues
 
 **Code Quality:**
 1. Bare `except Exception` in simple_cli.py line 220
 2. `robot_controller.py` still 646 lines (over 300 line RULES.md limit)
+3. Debug print statements in robot_controller.py and process_api.py (should be removed or converted to proper logging)
 
 ### Test Suite
 - `test_command_dispatcher.py` - 12 tests

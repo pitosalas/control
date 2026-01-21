@@ -53,19 +53,23 @@ class RobotController:
         return None
 
     def _start_launch(self, launch_type: str, **params) -> CommandResponse:
-        """Start a launch process with conflict checking"""
+        """Start a launch process with conflict checking and extra debug logging"""
+        print(f"[DEBUG] Attempting to start launch: {launch_type} with params: {params}")
         conflict = self._check_launch_conflict(launch_type)
         if conflict:
+            print(f"[DEBUG] Launch conflict detected: {conflict.message}")
             return conflict
 
         try:
             # Start new launch process using ProcessApi
             process_id = self.process.launch_by_type(launch_type, **params)
+            print(f"[DEBUG] launch_by_type returned process_id: {process_id}")
             self.launch_process_ids[launch_type] = process_id
             return CommandResponse(
                 True, f"Started {launch_type}", {"process_id": process_id}
             )
         except ValueError as e:
+            print(f"[DEBUG] Exception in _start_launch: {e}")
             return CommandResponse(False, str(e))
 
     def _stop_launch(self, launch_type: str) -> CommandResponse:
