@@ -5,6 +5,7 @@ Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,7 +23,8 @@ class SimpleCLI:
 
     def __init__(self):
         self.parser = SimpleCommandParser()
-        self.config_manager = cm.ConfigManager("/home/pitosalas/.control/config.yaml")
+        config_path = os.environ.get("CONTROL_CONFIG", str(Path.home() / ".control" / "config.yaml"))
+        self.config_manager = cm.ConfigManager(config_path)
         self.robot_controller = rc.RobotController(self.config_manager)
         self.dispatcher = cd.CommandDispatcher(self.robot_controller)
         self.running = True

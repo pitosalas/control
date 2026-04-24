@@ -4,8 +4,6 @@ Command Dispatcher - Central command registry and execution dispatcher
 Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
-from __future__ import annotations
-
 import control.commands.command_def as cd
 import control.commands.control_commands as ctrl_cmd
 import control.commands.launch_commands as lch_cmd

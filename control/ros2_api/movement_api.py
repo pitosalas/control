@@ -16,6 +16,8 @@ class MovementApi(base.BaseApi):
     Provides safe velocity commands with automatic stopping.
     """
 
+    blocking_ok = True  # set to False in lifecycle node subclasses to guard cmd_vel_helper
+
     def __init__(self, config_manager: cm.ConfigManager = None):
         super().__init__("movement_api", config_manager)
 
@@ -123,7 +125,10 @@ class MovementApi(base.BaseApi):
         return linear_ok and angular_ok
 
     def cmd_vel_helper(self, linear: float, angular: float, seconds: float):
-        """Send velocity commands for specified duration with safety limits."""
+        # Blocks the calling thread for `seconds`. Must not be called from a
+        # lifecycle node spin context — set blocking_ok = False there to catch this.
+        if not self.blocking_ok:
+            raise RuntimeError("cmd_vel_helper called from a non-blocking context")
         if not self.check_velocity_limits(linear, angular):
             return
 
