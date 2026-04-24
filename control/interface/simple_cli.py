@@ -82,6 +82,35 @@ class SimpleCLI:
             print(footer)
         return True
 
+    def _show_common_commands(self):
+        print("Common Commands:")
+        print()
+        print("Movement:")
+        print("  move forward <meters>")
+        print("  move backward <meters>")
+        print("  turn clockwise <degrees>")
+        print("  turn counterclockwise <degrees>")
+        print()
+        print("Control:")
+        print("  robot stop")
+        print("  robot status")
+        print()
+        print("Configuration:")
+        print("  config get <variable>")
+        print("  config set <variable> <value>")
+        print()
+        print("Launch:")
+        print("  launch start <type>")
+        print("  launch stop <type>")
+        print()
+        print("Scripts:")
+        print("  script square --meters <value>")
+        print()
+        print("Other:")
+        print("  help <command>        - Show help for specific command")
+        print("  help commands         - Show all available commands")
+        print("  exit                  - Exit the program")
+
     def _show_all_commands(self):
         print("All Available Commands (alphabetical):")
         print("=" * 70)
@@ -124,11 +153,7 @@ class SimpleCLI:
         if parsed.subcommand:
             self._show_specific_help(parsed)
         else:
-            help_text = self._load_help_file("_index.txt")
-            if help_text:
-                print(help_text)
-            else:
-                print("Help documentation not found.")
+            self._show_common_commands()
 
 
     def execute_command(self, input_text: str):

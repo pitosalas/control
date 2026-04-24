@@ -110,26 +110,9 @@ class RobotController:
         if not config:
             return CommandResponse(False, f"Unknown launch type: {launch_type}")
 
-        # Build info display
         info_lines = []
-        info_lines.append(f"Launch: {config.launch_type}")
         info_lines.append(f"Description: {config.description}")
-        info_lines.append("\nCommand:")
-        info_lines.append(f"  {config.command_template}")
-
-        if config.default_params:
-            info_lines.append("\nDefault Parameters:")
-            for key, value in config.default_params.items():
-                info_lines.append(f"  {key}: {value}")
-
-        info_lines.append("\nUsage:")
-        info_lines.append(f"  launch start {launch_type}")
-        # Show map parameter option if map is in default params
-        if config.default_params and "map" in config.default_params:
-            info_lines.append(f"  launch start {launch_type} --map <mapname>")
-        if "map" in launch_type:
-            info_lines.append(f"  launch start {launch_type} --map-name <name>")
-        info_lines.append(f"  launch start {launch_type} --use-sim-time")
+        info_lines.append(f"Command: {config.command_template}")
 
         return CommandResponse(True, "\n".join(info_lines))
 

@@ -27,7 +27,6 @@ setup(
     maintainer_email='your_email@example.com',
     description='DOME robot control package',
     license='TODO: License declaration',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'run = control.main:main',
