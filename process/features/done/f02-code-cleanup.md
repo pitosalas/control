@@ -10,3 +10,12 @@ continue to pass. Violations: banned `from __future__ import annotations` import
 eager API instantiation in RobotController, blocking spin loop in cmd_vel_helper,
 hardcoded Pi-only config path in SimpleCLI, and rclpy.init() called inside BaseApi
 instead of by the caller.
+
+## How to Demo
+**Setup**: no ROS2 required; tests are self-contained.
+
+**Steps**:
+1. `cd /home/pitosalas/ros2_ws/src/control`
+2. `python3 -m pytest test/ -v --ignore=test/__init__.py`
+
+**Expected output**: all 67 tests pass, zero failures.

@@ -5,10 +5,12 @@ Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
 
+import time
 from dataclasses import dataclass
 
 from control.commands.config_manager import ConfigManager
 from control.ros2_api.calibration_api import CalibrationApi
+from control.ros2_api.intent_api import IntentApi
 from control.ros2_api.movement_api import MovementApi
 from control.ros2_api.process_api import ProcessApi
 
@@ -31,6 +33,7 @@ class RobotController:
         self._movement = None
         self._calibration = None
         self._process = None
+        self._intent = None
         launch_templates = self.config.get_launch_templates()
         self.launch_process_ids = dict.fromkeys(launch_templates.keys())
 
@@ -51,6 +54,14 @@ class RobotController:
         if self._process is None:
             self._process = ProcessApi(self.config)
         return self._process
+
+    @property
+    def intent(self) -> IntentApi:
+        if self._intent is None:
+            self._intent = IntentApi(self.config)
+            # allow DDS publisher-subscriber discovery before first publish
+            time.sleep(0.5)
+        return self._intent
 
     def _is_launch_running(self, launch_type: str) -> bool:
         """Check if a specific launch type is running"""
@@ -638,4 +649,20 @@ class RobotController:
             return CommandResponse(False, "Kill command timed out")
         except Exception as e:
             return CommandResponse(False, f"Error killing process: {e}")
+
+    def publish_intent(self, name: str, slots: dict) -> CommandResponse:
+        self.intent.publish(name, "cli", slots)
+        return CommandResponse(True, f"Intent published: {name}")
+
+    def publish_intent_stop(self) -> CommandResponse:
+        return self.publish_intent("stop", {})
+
+    def publish_intent_explore(self) -> CommandResponse:
+        return self.publish_intent("explore", {})
+
+    def publish_intent_describe_scene(self) -> CommandResponse:
+        return self.publish_intent("describe_scene", {})
+
+    def publish_intent_count_objects(self, object_type: str) -> CommandResponse:
+        return self.publish_intent("count_objects", {"object_type": object_type})
 

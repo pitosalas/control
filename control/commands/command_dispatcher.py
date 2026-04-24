@@ -6,6 +6,7 @@ Open Source Under MIT license
 """
 import control.commands.command_def as cd
 import control.commands.control_commands as ctrl_cmd
+import control.commands.intent_commands as intent_cmd
 import control.commands.launch_commands as lch_cmd
 import control.commands.movement_commands as mov_cmd
 import control.commands.navigation_commands as nav_cmd
@@ -31,6 +32,7 @@ class CommandDispatcher:
         commands.update(nav_cmd.build_navigation_commands())
         commands.update(lch_cmd.build_launch_commands())
         commands.update(sys_cmd.build_system_commands())
+        commands.update(intent_cmd.build_intent_commands())
         return commands
 
     def execute(

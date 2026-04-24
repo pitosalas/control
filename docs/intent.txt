@@ -1,0 +1,28 @@
+INTENT COMMANDS — publish normalized intent messages to /intent (std_msgs/String JSON)
+
+COMMANDS
+  intent.stop               — publish stop intent
+  intent.explore            — publish explore intent
+  intent.describe_scene     — publish describe_scene intent
+  intent.count_objects      — publish count_objects intent (requires object_type)
+
+SMOKE TEST
+  Terminal 1:
+    ros2 topic echo /intent std_msgs/msg/String
+
+  Terminal 2 (run REPL):
+    ros2 run control run
+
+  In REPL, type:
+    intent stop
+    intent explore
+    intent count_objects object_type=chair
+
+EXPECTED OUTPUT (Terminal 1)
+  data: '{"name": "stop", "source": "cli", "slots": {}}'
+  data: '{"name": "explore", "source": "cli", "slots": {}}'
+  data: '{"name": "count_objects", "source": "cli", "slots": {"object_type": "chair"}}'
+
+NOTES
+  Wire format: std_msgs/String containing JSON
+  Custom Intent.msg deferred until vocabulary stabilizes
