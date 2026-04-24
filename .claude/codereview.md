@@ -43,9 +43,9 @@ Derived from `.claude/coding.md`. Apply to each Python file under review.
 - [ ] No variable assigned from a function result used only once
 
 ## Comments and docstrings
-- [ ] No multi-line or multi-paragraph docstrings
-- [ ] Comments only on methods/functions where the name is NOT self-explanatory
-- [ ] No comments that describe WHAT the code does (only WHY if non-obvious)
+- [ ] Simple methods (name is self-explanatory, body is obvious): no docstring
+- [ ] Complex methods (non-obvious algorithm, hidden invariant, subtle side-effect): multi-line docstring allowed — explain WHY the mechanism exists, what problem it solves, and any non-obvious preconditions or postconditions
+- [ ] No comments that only restate WHAT the code does — add them only when the WHY would surprise a reader
 - [ ] No task/fix/caller references in comments
 
 ## Type safety
@@ -68,6 +68,11 @@ Derived from `.claude/coding.md`. Apply to each Python file under review.
 - [ ] No god methods (each does one thing)
 - [ ] No feature envy (method doesn't heavily reach into another class's internals)
 - [ ] No data clumps (same 2–3 args traveling together everywhere → make a dataclass)
+
+### Schema duplication
+- [ ] No parallel dataclasses — if two classes share 5+ identical fields, extract a base class
+- [ ] No hand-transcribed schemas — if a dataclass's fields also appear in a YAML config or in ROS2 `declare_parameter` blocks, those sites must loop over `dataclasses.fields()` instead of re-listing fields by hand
+- [ ] Adding one field to a dataclass must not require edits in more than one other file (shotgun surgery smell)
 
 ### Cohesion
 - [ ] Class has a single clear responsibility
@@ -103,6 +108,21 @@ Derived from `.claude/coding.md`. Apply to each Python file under review.
 - [ ] Edge cases are covered: empty inputs, None values, boundary conditions
 - [ ] Any non-obvious behaviour that was clarified by a comment also has a test that encodes that expectation
 - [ ] If a bug was fixed during review, a regression test was added
+
+## Packaging (standalone library)
+- [ ] Uses `pyproject.toml` + `setuptools`; install with `pip3 install -e . --break-system-packages`
+- [ ] Source dir name matches project dir name
+- [ ] Dual-package repos include `package.xml`, `setup.py`, `resource/<package_name>`
+- [ ] Library modules: no `main()`, no `argparse`; config via YAML dataclass; examples in `examples/` ≤40 lines
+- [ ] No ROS2 imports (`rclpy`, `sensor_msgs`, etc.) outside `ros/` subpackage
+
+## ROS2 package
+- [ ] Nodes under `ros/` subpackage; only place that imports `rclpy` or ROS message types
+- [ ] Lifecycle nodes (`rclpy.lifecycle.Node`) where appropriate
+- [ ] Message conversion helpers in `ros/converters.py`, not in the node
+- [ ] Launch files use `better_launch` (`@launch_this`, `bl.node`, `bl.group`, `bl.include`)
+- [ ] ROS2 runtime deps declared as `exec_depend` in `package.xml`; not in `pyproject.toml`
+- [ ] Tests in `tests/` run with plain `pytest` — no `colcon test` dependency
 
 ## Dead code
 - [ ] No unreachable code after `return`

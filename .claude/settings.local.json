@@ -4,7 +4,14 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Read(//Users/pitosalas/mydev/control/**)"
+      "Read(//Users/pitosalas/mydev/control/**)",
+      "Bash(xargs ls *)",
+      "Bash(python -m pytest test/ -x -q)",
+      "Bash(python3 -c \"import numpy\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 *)",
+      "Bash(git stash *)",
+      "Bash(git rm *)"
     ]
   }
 }
