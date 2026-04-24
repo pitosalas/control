@@ -4,8 +4,6 @@ Navigation Commands - Map management command definitions
 Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
-from __future__ import annotations
-
 import control.commands.command_def as cd
 import control.commands.parameter_def as pd
 

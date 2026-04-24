@@ -5,8 +5,6 @@ Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from control.commands.config_manager import ConfigManager
@@ -30,13 +28,29 @@ class RobotController:
 
     def __init__(self, config_manager: ConfigManager):
         self.config = config_manager
-        self.movement = MovementApi(self.config)
-        self.calibration = CalibrationApi(self.movement, self.config)
-        self.process = ProcessApi(self.config)
-
-        # Track singleton launch processes - initialized from config templates
+        self._movement = None
+        self._calibration = None
+        self._process = None
         launch_templates = self.config.get_launch_templates()
         self.launch_process_ids = dict.fromkeys(launch_templates.keys())
+
+    @property
+    def movement(self) -> MovementApi:
+        if self._movement is None:
+            self._movement = MovementApi(self.config)
+        return self._movement
+
+    @property
+    def calibration(self) -> CalibrationApi:
+        if self._calibration is None:
+            self._calibration = CalibrationApi(self.movement, self.config)
+        return self._calibration
+
+    @property
+    def process(self) -> ProcessApi:
+        if self._process is None:
+            self._process = ProcessApi(self.config)
+        return self._process
 
     def _is_launch_running(self, launch_type: str) -> bool:
         """Check if a specific launch type is running"""
@@ -349,15 +363,9 @@ class RobotController:
 
         # Check node health
         nodes_status = {
-            "movement_api": "running"
-            if hasattr(self, "movement") and self.movement
-            else "not available",
-            "calibration_api": "running"
-            if hasattr(self, "calibration") and self.calibration
-            else "not available",
-            "process_api": "running"
-            if hasattr(self, "process") and self.process
-            else "not available",
+            "movement_api": "running" if self._movement else "not available",
+            "calibration_api": "running" if self._calibration else "not available",
+            "process_api": "running" if self._process else "not available",
         }
 
         status = {

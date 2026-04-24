@@ -14,8 +14,6 @@ class BaseApi(Node, ABC):
     """
 
     def __init__(self, node_name: str, config_manager: cm.ConfigManager = None):
-        if not rclpy.ok():
-            rclpy.init()
         super().__init__(node_name)
 
         self.config = config_manager or cm.ConfigManager()
