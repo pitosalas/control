@@ -5,8 +5,6 @@ Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 
@@ -18,15 +16,14 @@ class ConfigManager:
         self.config_file = Path(config_file)
         self.control_dir = self.config_file.parent
         self.variables: dict[str, object] = {}
-        self.load_config()
-        self.ensure_subdirs()
-        self._detect_test_environment()
 
-    def _init_control_dir(self, config_file: str) -> Path:
-        return Path(config_file).parent
-
-    def _init_config_file(self, config_file: str) -> Path:
-        return Path(config_file)
+    @classmethod
+    def create(cls, config_file: str) -> "ConfigManager":
+        manager = cls(config_file)
+        manager.load_config()
+        manager.ensure_subdirs()
+        manager.detect_test_environment()
+        return manager
 
     def load_config(self):
         with self.config_file.open() as f:
@@ -37,27 +34,22 @@ class ConfigManager:
             yaml.dump(self.variables, f, default_flow_style=False, sort_keys=False)
 
     def set_variable(self, name: str, value: object):
-        # If value is already a native type (not string), use it directly
         if not isinstance(value, str):
             self.variables[name] = value
-        # Try to convert string to appropriate type
         elif value.lower() in ["true", "false"]:
             self.variables[name] = value.lower() == "true"
-        elif self._is_number(value):
-            self.variables[name] = self._convert_number(value)
+        elif self.is_number(value):
+            self.variables[name] = self.convert_number(value)
         else:
-            # Keep as string
             self.variables[name] = value
-
-        # Save configuration after setting variable
         self.save_config()
 
-    def _convert_number(self, value: str) -> int | float:
+    def convert_number(self, value: str) -> int | float:
         if "." in value:
             return float(value)
         return int(value)
 
-    def _is_number(self, value: str) -> bool:
+    def is_number(self, value: str) -> bool:
         try:
             float(value)
             return True
@@ -90,22 +82,15 @@ class ConfigManager:
         return self.control_dir / "maps"
 
     def get_launch_templates(self) -> dict:
-        """Get launch templates from config file"""
         return self.variables.get("launch_templates", {})
 
     def resolve_path(self, path_str: str) -> Path:
-        """
-        Resolve a path relative to ~/.control/ directory.
-        If path is absolute or starts with ~, use as-is.
-        Otherwise, resolve relative to ~/.control/ directory.
-        """
         path = Path(path_str).expanduser()
         if path.is_absolute():
             return path
-        # Resolve relative to ~/.control/ directory
         return (self.control_dir / path).resolve()
 
-    def _detect_test_environment(self):
+    def detect_test_environment(self):
         if "pytest" in sys.modules or "unittest" in sys.modules:
             self.variables["dry_run"] = True
 

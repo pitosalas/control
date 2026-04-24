@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-Launch command definitions for unified launch management.
-
+Launch Commands - Command definitions for launch management
 Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
-from __future__ import annotations
-
 import control.commands.command_def as cd
 import control.commands.parameter_def as pd
 

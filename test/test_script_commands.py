@@ -130,7 +130,7 @@ class TestScriptCommands:
     @patch("control.commands.robot_controller.ProcessApi")
     def test_robot_controller_script_square(self, mock_process, mock_movement, mock_calibration):
         """Test RobotController.script_square method."""
-        config = ConfigManager(CONFIG_FILE)
+        config = ConfigManager.create(CONFIG_FILE)
         controller = RobotController(config)
 
         mock_calibration_instance = controller.calibration
@@ -147,7 +147,7 @@ class TestScriptCommands:
     @patch("control.commands.robot_controller.ProcessApi")
     def test_robot_controller_script_rotate_stress(self, mock_process, mock_movement, mock_calibration):
         """Test RobotController.script_rotate_stress method."""
-        config = ConfigManager(CONFIG_FILE)
+        config = ConfigManager.create(CONFIG_FILE)
         controller = RobotController(config)
 
         mock_calibration_instance = controller.calibration

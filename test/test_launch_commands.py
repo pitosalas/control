@@ -16,7 +16,7 @@ class TestLaunchCommands(unittest.TestCase):
     @patch("control.commands.robot_controller.CalibrationApi")
     def setUp(self, mock_calib, mock_move, mock_proc):
         """Set up test fixtures"""
-        self.config_manager = ConfigManager(CONFIG_FILE)
+        self.config_manager = ConfigManager.create(CONFIG_FILE)
         self.controller = RobotController(self.config_manager)
         self.dispatcher = CommandDispatcher(self.controller)
 

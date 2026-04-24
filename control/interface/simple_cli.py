@@ -24,7 +24,7 @@ class SimpleCLI:
     def __init__(self):
         self.parser = SimpleCommandParser()
         config_path = os.environ.get("CONTROL_CONFIG", str(Path.home() / ".control" / "config.yaml"))
-        self.config_manager = cm.ConfigManager(config_path)
+        self.config_manager = cm.ConfigManager.create(config_path)
         self.robot_controller = rc.RobotController(self.config_manager)
         self.dispatcher = cd.CommandDispatcher(self.robot_controller)
         self.running = True

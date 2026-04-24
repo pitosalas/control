@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
+"""Tests for RobotController launch methods."""
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
 from control.commands.config_manager import ConfigManager
 from control.commands.robot_controller import RobotController
 
-CONFIG_FILE = "/home/pitosalas/.control/config.yaml"
+CONFIG_FILE = os.environ.get("CONTROL_CONFIG", os.path.expanduser("~/.control/config.yaml"))
 
 
 class TestRobotControllerLaunch(unittest.TestCase):
     """Test cases for RobotController launch methods"""
 
-    @patch("control.commands.robot_controller.ProcessApi")
-    @patch("control.commands.robot_controller.MovementApi")
-    @patch("control.commands.robot_controller.CalibrationApi")
-    def setUp(self, mock_calib, mock_move, mock_proc):
+    def setUp(self):
         """Set up test fixtures"""
-        self.config_manager = ConfigManager(CONFIG_FILE)
-        self.controller = RobotController(self.config_manager)
+        self.config_manager = ConfigManager.create(CONFIG_FILE)
+        with patch("control.commands.robot_controller.ProcessApi"), \
+             patch("control.commands.robot_controller.MovementApi"), \
+             patch("control.commands.robot_controller.CalibrationApi"):
+            self.controller = RobotController(self.config_manager)
 
-        # Mock the ProcessApi to avoid actual process launching
-        self.controller.process = MagicMock()
+        self.controller._process = MagicMock()
 
     def test_launch_list(self):
         """Test launch list returns available launch types"""
-        self.controller.process.get_available_launch_types.return_value = [
+        self.controller._process.get_available_launch_types.return_value = [
             "nav",
             "slam",
             "map",
@@ -34,7 +35,7 @@ class TestRobotControllerLaunch(unittest.TestCase):
             "slam": MagicMock(launch_type="slam", description="SLAM toolbox"),
             "map": MagicMock(launch_type="map", description="Map server"),
         }
-        self.controller.process.get_launch_config.side_effect = lambda t: mock_configs[t]
+        self.controller._process.get_launch_config.side_effect = lambda t: mock_configs[t]
         self.controller._is_launch_running = MagicMock(return_value=False)
 
         response = self.controller.launch_list()
@@ -45,7 +46,7 @@ class TestRobotControllerLaunch(unittest.TestCase):
 
     def test_launch_start_success(self):
         """Test successful launch start"""
-        self.controller.process.launch_by_type.return_value = "test-process-id"
+        self.controller._process.launch_by_type.return_value = "test-process-id"
         self.controller._is_launch_running = MagicMock(return_value=False)
 
         response = self.controller.launch_start("nav", use_sim_time=True)
@@ -65,7 +66,7 @@ class TestRobotControllerLaunch(unittest.TestCase):
 
     def test_launch_start_invalid_type(self):
         """Test launch start with invalid type"""
-        self.controller.process.launch_by_type.side_effect = ValueError(
+        self.controller._process.launch_by_type.side_effect = ValueError(
             "Unknown launch type: invalid"
         )
         self.controller._is_launch_running = MagicMock(return_value=False)
@@ -78,8 +79,8 @@ class TestRobotControllerLaunch(unittest.TestCase):
     def test_launch_stop_success(self):
         """Test successful launch stop"""
         self.controller.launch_process_ids["nav"] = "test-process-id"
-        self.controller.process.is_process_running.return_value = True
-        self.controller.process.kill_by_type.return_value = True
+        self.controller._process.is_process_running.return_value = True
+        self.controller._process.kill_by_type.return_value = True
 
         response = self.controller.launch_stop("nav")
 
