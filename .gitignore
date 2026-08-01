@@ -1,16 +1,4 @@
-build/
-log/
 install/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-.pytest_cache/
 bin/
 piper_model/
-.DS_Store
-._*
-__MACOSX/
-*.egg-info/
-.claude/settings.local.json
+.Python
