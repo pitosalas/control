@@ -1,34 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Read(//Users/pitosalas/mydev/control/**)",
-      "Bash(xargs ls *)",
-      "Bash(python -m pytest test/ -x -q)",
-      "Bash(python3 -c \"import numpy\")",
-      "Bash(pip3 install *)",
-      "Bash(python3 *)",
-      "Bash(git stash *)",
-      "Bash(git rm *)",
-      "Read(//home/pitosalas/ros2_ws/src/oak_roboflow/02-doc/**)",
-      "Read(//home/pitosalas/ros2_ws/src/oak_roboflow/**)",
-      "Bash(mv /home/pitosalas/ros2_ws/src/control/tune /home/pitosalas/tune)",
-      "Read(//home/pitosalas/**)",
-      "Bash(tune --version)",
-      "Bash(grep *)",
-      "Bash(awk 'length > 88 {print FILENAME \":\" NR \": \" length \" chars\"}' tune/*.py tune/**/*.py tests/*.py)",
-      "Bash(git *)",
-      "Bash(xargs cat)",
-      "Bash(piper --version)",
-      "Bash(ros2 topic *)",
-      "Bash(cd /home/pitosalas/ros2_ws/src/dome_control/.claude/projects)",
-      "Bash(ls ~/.claude/projects/-home-pitosalas-ros2-ws-src-dome-control/memory/MEMORY.md)",
-      "Bash(awk 'length>88{print FILENAME\":\"NR\": \"length\" chars\"}' dome_control/telemetry/config.py dome_control/telemetry/host_stats.py dome_control/telemetry/csv_logger.py dome_control/nodes/telemetry_node.py test/test_telemetry_*.py)",
-      "Bash(python -m pytest test/ -v)",
-      "Bash(pip install *)",
-      "Bash(sort -t F -k2 -n)"
+      "Skill(code-review)",
+      "Bash(git -C /home/pitosalas/j3 status)",
+      "Bash(git -C /home/pitosalas/j3 diff)",
+      "Bash(git -C /home/pitosalas/j3 add .claude/bootstrap.md .claude/commands/checkpoint.md .claude/commands/start.md .claude/literate.md .claude/process.md .claude/settings.json .claude/settings.local.json .claude/style_guide.md .claude/templates/feature-template.md README.md)",
+      "Bash(git -C /home/pitosalas/j3 commit -m ' *)",
+      "Bash(git *)"
     ]
   }
 }

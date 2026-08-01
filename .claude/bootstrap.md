@@ -23,9 +23,14 @@ CLAUDE.md
   notdone/
   done/
   deferred/
+  chores.md
   template.md
 05-issues/
+  open/
+  closed/
+  deferred/
   template.md
+run.bash
 ```
 ### LICENSE
 Copy from `.claude/templates/LICENSE.template` and replace `<YEAR>` and `<AUTHOR NAME>`.
@@ -43,8 +48,8 @@ Copy from `.claude/templates/.gitignore.template` as-is.
 This file provides guidance to Claude Code when working with code in this repository.
 
 Read and follow all rules in the `.claude/` folder:
-- `.claude/process.md` — development workflow and feature/task tracking rules
-- `.claude/codereview.md` — coding standards, style rules, and review checklist
+- @.claude/process.md — development workflow and feature/task tracking rules
+- @.claude/style_guide.md — coding standards, style rules, and review checklist
 - `02-doc/current.md` — session handoff and current status
 - `02-doc/notes.md` — semi-permanent project notes
 
@@ -52,6 +57,9 @@ We are developing an app called <APP NAME>. Literate docs are in `01-literate/`,
 project docs are in `02-doc/`, features are in `03-features/`, tasks are in
 `04-tasks/`, issues are in `05-issues/`, and the spec is in `02-doc/spec.md`.
 ```
+
+### run.bash
+Executable shell script containing the app's run command; set executable with `chmod +x run.bash`.
 
 ## After scaffolding
 

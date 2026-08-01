@@ -254,8 +254,9 @@ if __name__=='__main__':
 
     # Create an INA219 instance.
     ina219 = INA219(addr=0x41)
+    estimator = SocEstimator()
     while True:
-        stats = read_ups_stats(ina219)
+        stats = read_ups_stats(ina219, estimator)
         bus_voltage = stats.bus_voltage_v
         current = stats.current_a * 1000           # back to mA for the legacy print
         power = stats.power_w

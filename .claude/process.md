@@ -1,57 +1,35 @@
 # General
-* You shall not write any code for the tool without a corresponding task
-* You shall not write any task description without a corresponding feature
-* You shall not write a feature which is not consistent with the spec
-* You shall not close off a feature unless there is a complete suite of tests and they run
+* No code without a task; no task without a feature; no feature that contradicts the spec.
+* After creating a feature + task file, stop and present the plan. Do not write code until user gives explicit approval.
+* Don't close a feature until its full test suite exists and passes.
+* Exception — simple bug fixes and refactors (no spec/behavior change) skip the feature/task pair; log them as chores (see `# chores`).
+
+# chores
+* Simple bug fixes and refactors go in one running file, `04-tasks/chores.md`, not their own feature/task pair.
+* Each entry is one line: `- [ ] <what and why>`, flipped to `- [x]` when applied. A bug fix still gets a test.
 
 # features
-* new features get a feature id like `F01-create-process-folder`
-* Feature file naming scheme is `FNN-<slug>.md` where `NN` is the feature number
-* each feature has a markdown file in the `03-features/done`, `03-features/deferred`, or `03-features/notdone` folder
-* each feature records whether its corresponding task file exists with `**Tasks File Created:** yes | no`
-* set `Tasks File Created` to `yes` only when a matching `04-tasks/{done,notdone,deferred}/TFNN-*.md` file exists for that same `NN`
-* inside features folder there is a file called template.md which shows the format
-* feature md files are mini-specs. They should not go to the level of tasks. They belong in the task md file
+* Naming: `FNN-<slug>.md` (e.g. `F01-create-process-folder`), filed in `03-features/{notdone,done,deferred}/`.
+* Feature files are mini-specs — scope and intent, not task-level detail.
+* `**Tasks File Created:** yes` only once a matching `04-tasks/{notdone,done,deferred}/TFNN-*.md` exists.
+* `template.md` in the folder shows the format.
 
 # tasks
-* Before any design is done or code is written, a set of tasks must be developed
-* All the tasks for a feature can be found in a task file in the `04-tasks/done`, `04-tasks/deferred`, or `04-tasks/notdone` folders
-* Task file naming scheme is `TFNN-<slug>.md` where `NN` matches the corresponding feature number
-* When creating a task file for a feature, update the feature file's `Tasks File Created` field to `yes`
-* inside tasks folder there is a file called template.md which shows the format
-* Each individual task step must include at least one test whenever feasible
-* If a step cannot be tested meaningfully, record a short reason in the task or work log
-* Every feature must include a task for writing tests; this task must always be proposed along with the other tasks
-* When the last task for a feature is marked done, move the task file from `04-tasks/notdone/` to `04-tasks/done/`
-* Then update the feature file: set Done to yes, and Tests Written and Test Passing to yes if applicable
-* Then move the feature file from `03-features/notdone/` to `03-features/done/`
+* Develop the full task list before any design or code.
+* Naming: `TFNN-<slug>.md`, `NN` matching the feature; filed in `04-tasks/{notdone,done,deferred}/`. `template.md` shows the format.
+* Every task step includes at least one test where feasible; if untestable, record why in the task.
+* Every feature includes a dedicated test-writing task, proposed with the rest.
+* When the last task is done: move the task file to `done/`, set the feature's `Done`/`Tests Written`/`Test Passing` to yes as applicable, and move the feature file to `done/`.
 
 # issues
-* Numbered issues
-* Issues live in `05-issues/` as markdown files until they are converted into a feature or resolved
-* Follow the template
+* Numbered issues in `05-issues/{open,closed,deferred}/`; follow the template.
+* New issues → `open/`; → `closed/` when resolved or converted to a feature/task; → `deferred/` when explicitly deferred.
+
+* Whenever transitioning from working on one task, feature, chore, to another, stop and ask for permission to switch.
 
 # bootstrap
-* When asked to bootstrap a new project, create the following structure:
-  - `LICENSE` — copy from `.claude/templates/LICENSE.template`, fill in year and author
-  - `README.md` — copy from `.claude/templates/README.md.template`, fill in app name
-  - `.gitignore` — copy from `.claude/templates/.gitignore.template` as-is
-  - `CLAUDE.md` — create with references to `.claude/process.md`, `.claude/codereview.md`, `02-doc/current.md`, and `02-doc/notes.md`
-  - `01-literate/` — generated literate docs for changed Python modules
-  - `02-doc/spec.md` — blank spec file for the target app
-  - `02-doc/current.md` — session handoff and current status
-  - `02-doc/notes.md` — semi-permanent project notes
-  - `03-features/notdone/` — folder for pending features
-  - `03-features/done/` — folder for completed features
-  - `03-features/deferred/` — folder for deferred features
-  - `03-features/template.md` — copy from `.claude/templates/feature-template.md`
-  - `04-tasks/notdone/` — folder for pending tasks
-  - `04-tasks/done/` — folder for completed tasks
-  - `04-tasks/deferred/` — folder for deferred tasks
-  - `04-tasks/template.md` — copy from `.claude/templates/task_template.md`
-  - `05-issues/` — loose issues not yet converted into features
-  - `05-issues/template.md` — copy from `.claude/templates/issue_template.md`
-* After scaffolding, prompt the user to fill in `02-doc/spec.md` and initialize `02-doc/current.md` before defining any features
+* Scaffold spec lives in `.claude/bootstrap.md` — single source of truth. Follow it when bootstrapping a new project.
+
 
 # github
 * Literate docs are generated by applying the prompt in `.claude/literate.md` to each changed Python source file and saving the result to `01-literate/<module>.md`
@@ -60,7 +38,6 @@
 * Whenever asked you will push to github
 
 # bugs and testing
-* Whenever a bug is discovered, and fixed, write a new test for it
-* Whenever we see a regression bug, and fix it, write a new test for it.
+* When you fix a bug or regression, add a test for it.
 
 
