@@ -49,6 +49,21 @@ below needs a decision first.
    `behavior_manager` as if it were the only `/intent` owner; no mention of
    `dome_mission` anywhere in `dome_control`'s docs.
 
+## Decisions (made 2026-08-04)
+
+**T02 — coordinated stop.** No automatic coordination. `stop` stays a pure
+`dome_control` motor halt (zero `/cmd_vel`) with no knowledge of
+`dome_mission`'s FSM state. Cancelling an active mission goal is a separate,
+explicit command — already implemented on the `dome_mission` side as
+`navigation_cancel`/`exploration_stop`, reachable from the CLI's `nav.*`
+domain (`nav cancel` / `nav explore.stop`) today.
+
+To make the two commands' targets unambiguous, the CLI domain that talks to
+`dome_mission` is renamed from `nav` to `mission` (tracked as new scope under
+F21, since it's a CLI-naming decision, not a behavior change). `stop` (talks
+to `dome_control`) needs no rename — nothing to disambiguate it from. See
+F21's updated D3 for the exact renamed command list.
+
 ## How to Demo
 
 **Setup**: both `behavior_manager` (dome_control) and `mission_node`

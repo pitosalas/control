@@ -12,22 +12,22 @@ Test: `test_motion_behavior.py` asserts `"explore"` is no longer in
 no longer resolves to a command.
 
 ## T02 — Decide the coordinated-stop design
-**Status**: not done
+**Status**: done
 **Description**: Resolve the two sub-questions recorded in F19's "Open
-question — coordinated stop": (a) should `dome_control`'s `stop` also
-publish `exploration_stop` / `navigation_cancel` so an active `dome_mission`
-goal is cancelled too, unconditionally or only when a mission is actually
-active; (b) should that coordination live in `behavior_manager`
-(`dome_control`) or should `dome_mission` itself treat `"stop"` as a cancel
-signal by adding it to its own `NAME_TO_INTENT`. Output of this task is a
-recorded decision (append to F19's Description or a short addendum here) —
-no code. Blocks T03.
+question — coordinated stop". **Decision (2026-08-04, see F19's
+Decisions section): no automatic coordination.** `stop` stays a pure
+`dome_control` motor halt; cancelling an active `dome_mission` goal remains
+a separate, explicit command (`nav cancel` / `nav explore.stop` today,
+renamed to `mission cancel` / `mission explore.stop` under F21). No code
+change required in `dome_control`/`dome_mission` for this decision itself —
+the cancel path already exists; only the CLI domain rename (F21) follows
+from it.
 
 ## T03 — Implement coordinated stop
-**Status**: not done
-**Description**: Wire whichever design T02 settles on. Test: unit test
-exercising the wiring (mock intent publisher or mock mission-cancel path,
-per T02's decision) asserts `stop` produces the decided cancel behavior.
+**Status**: not applicable — superseded by T02's decision
+**Description**: Not needed. T02 decided against coordinated stop; no
+wiring to implement. Left in place (not deleted) for traceability of why
+this task isn't done.
 
 ## T04 — Docs
 **Status**: not done
@@ -36,7 +36,8 @@ split `/intent` ownership — which names `dome_control` handles
 (`stop`, `drive_square`, `turn_right`, `turn_left`, `get_status`,
 `describe_scene`, `count_objects`) vs. which `dome_mission` handles
 (`exploration_start`, `exploration_stop`, `navigation_go`,
-`navigation_cancel`), and the resolved stop behavior from T02.
+`navigation_cancel`), and the resolved stop behavior from T02 (no
+coordination; `stop` and `mission cancel` are separate commands).
 
 ## T05 — Live verification on the Pi
 **Status**: not done
