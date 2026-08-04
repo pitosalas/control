@@ -5,7 +5,7 @@
 from unittest.mock import Mock
 
 from dome_control.commands.intent_parser import Intent
-from dome_control.behaviors.motion_behavior import MotionBehavior
+from dome_control.behaviors.motion_behavior import MOTION_INTENTS, MotionBehavior
 
 
 def make_intent(name, slots=None):
@@ -18,9 +18,12 @@ class TestMotionBehaviorHandles:
         mb = MotionBehavior(Mock())
         assert mb.handles("stop") is True
 
-    def test_handles_explore(self):
+    def test_does_not_handle_explore(self):
         mb = MotionBehavior(Mock())
-        assert mb.handles("explore") is True
+        assert mb.handles("explore") is False
+
+    def test_explore_removed_from_motion_intents(self):
+        assert "explore" not in MOTION_INTENTS
 
     def test_handles_drive_square(self):
         mb = MotionBehavior(Mock())
@@ -66,11 +69,6 @@ class TestMotionBehaviorExecute:
         mb = MotionBehavior(rc)
         mb.execute(make_intent("drive_square"))
         rc.script_square.assert_called_once_with(1.0)
-
-    def test_explore_does_not_raise(self):
-        rc = Mock()
-        mb = MotionBehavior(rc)
-        mb.execute(make_intent("explore"))  # not yet implemented, must not crash
 
     def test_turn_right_calls_turn_clockwise(self):
         rc = Mock()

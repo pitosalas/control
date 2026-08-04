@@ -124,12 +124,12 @@ class TestDispatchTextBehaviorIntents:
         import json
         assert json.loads(published[0])["name"] == "stop"
 
-    def test_intent_explore_publishes_explore_intent(self, rc):
+    def test_intent_explore_no_longer_resolves(self, rc):
         dispatcher, published = self._dispatcher_with_mock_publisher(rc)
         result = dispatcher.dispatch_text("intent explore")
-        assert result.success is True
-        import json
-        assert json.loads(published[0])["name"] == "explore"
+        assert result.success is False
+        assert "Unknown command" in result.message
+        assert len(published) == 0
 
     def test_scene_count_publishes_count_objects_intent(self, rc):
         dispatcher, published = self._dispatcher_with_mock_publisher(rc)

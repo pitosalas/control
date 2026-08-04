@@ -5,7 +5,6 @@ Author: Pito Salas and Claude Code
 Open Source Under MIT license
 """
 
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -65,8 +64,7 @@ def _format_cell(value) -> str:
 class SimpleCLI:
 
     def __init__(self):
-        default_cfg = str(Path.home() / ".control" / "config.yaml")
-        config_path = os.environ.get("CONTROL_CONFIG", default_cfg)
+        config_path = str(Path.home() / ".dome" / "config" / "control.yaml")
         self.config_manager = cm.ConfigManager.create(config_path)
         self.robot_controller = rc.RobotController(self.config_manager)
         self.intent_publisher = IntentPublisher()

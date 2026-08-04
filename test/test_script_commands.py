@@ -10,7 +10,7 @@ from dome_control.commands.command_dispatcher import CommandDispatcher
 from dome_control.commands.robot_controller import CommandResponse, RobotController
 from dome_control.commands.config_manager import ConfigManager
 
-CONFIG_FILE = str(Path.home() / ".control" / "config.yaml")
+CONFIG_FILE = str(Path.home() / ".dome" / "config" / "control.yaml")
 
 
 class TestScriptCommands:

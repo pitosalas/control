@@ -16,7 +16,7 @@ angular_max: 2.0
 log_dir: logs
 map_name: exp1
 dry_run: false
-control_dir: ~/.control
+control_dir: ~/.dome/config
 launch_templates:
   nav_lino:
     name: nav2_bringup

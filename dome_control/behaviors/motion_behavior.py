@@ -7,7 +7,7 @@
 from dome_control.commands.intent_parser import Intent
 from dome_control.announcement_contract import make_announcement_msg, PRIORITY_QUERY_REPLY
 
-MOTION_INTENTS = {"stop", "explore", "drive_square", "turn_right", "turn_left", "get_status"}
+MOTION_INTENTS = {"stop", "drive_square", "turn_right", "turn_left", "get_status"}
 
 TURN_DEGREES = 90
 
@@ -27,8 +27,6 @@ class MotionBehavior:
         elif intent.name == "drive_square":
             meters = float(intent.slots.get("meters", 1.0))
             self.rc.script_square(meters)
-        elif intent.name == "explore":
-            pass  # not yet implemented
         elif intent.name == "turn_right":
             self.rc.turn_clockwise(TURN_DEGREES)
         elif intent.name == "turn_left":

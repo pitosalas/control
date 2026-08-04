@@ -2,7 +2,15 @@
 # test_simple_cli_formatting.py — tests for CLI structured output formatting
 # Test tier: No-ROS
 
+import inspect
+
 from dome_control.interface.simple_cli import SimpleCLI, format_table
+
+
+def test_config_path_is_fixed_under_dome_config():
+    src = inspect.getsource(SimpleCLI.__init__)
+    assert "CONTROL_CONFIG" not in src
+    assert '".dome"' in src and '"config"' in src and '"control.yaml"' in src
 
 
 def test_format_table_aligns_columns():

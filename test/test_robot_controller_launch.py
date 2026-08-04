@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Tests for RobotController launch methods."""
-import os
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from dome_control.commands.config_manager import ConfigManager
 from dome_control.commands.robot_controller import RobotController
 
-CONFIG_FILE = os.environ.get("CONTROL_CONFIG", os.path.expanduser("~/.control/config.yaml"))
+CONFIG_FILE = str(Path.home() / ".dome" / "config" / "control.yaml")
 
 
 class TestRobotControllerLaunch(unittest.TestCase):

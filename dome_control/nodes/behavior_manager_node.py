@@ -19,10 +19,7 @@ from dome_control.behaviors.perception_behavior import PerceptionBehavior
 from dome_control.commands.config_manager import ConfigManager
 from dome_control.commands.robot_controller import RobotController
 
-DEFAULT_CONFIG = os.environ.get(
-    "CONTROL_CONFIG",
-    os.path.expanduser("~/.control/config.yaml"),
-)
+DEFAULT_CONFIG = os.path.expanduser("~/.dome/config/control.yaml")
 
 
 def default_vision_config() -> str:

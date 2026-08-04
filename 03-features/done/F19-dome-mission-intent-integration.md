@@ -2,10 +2,10 @@
 ## F19 — dome_mission `/intent` integration
 
 **Priority**: High
-**Done:** no
+**Done:** yes
 **Tasks File Created:** yes
-**Tests Written:** no
-**Test Passing:** no
+**Tests Written:** yes
+**Test Passing:** yes
 **Description**: `dome_mission` (new sibling package) now also subscribes to
 `/intent` and owns `exploration_start` / `exploration_stop` / `navigation_go`
 / `navigation_cancel` — driving Nav2 `NavigateToPose` and dome_nav's
@@ -82,3 +82,16 @@ F21's updated D3 for the exact renamed command list.
 **Expected output**: no dead/misleading commands left in the CLI; `stop`'s
 interaction with an active mission matches the decision recorded in T02;
 docs describe the split ownership accurately.
+
+## Demo Result (2026-08-04, run live on-robot, see TF19 T05 for full notes)
+
+Ran `behavior_manager` + `mission_node` together. `intent.explore` is gone
+from the CLI; `intent explore` now reports unknown command. `nav explore`
+correctly drives `mission_node` into `EXPLORING` via `exploration_start`;
+`nav explore.stop` returns it to `IDLE` via `exploration_stop`. `intent stop`
+is handled solely by `behavior_manager` — `mission_node` does not react to
+it, confirming the T02 no-coordination decision holds in practice.
+`ros2 topic info /intent -v` showed exactly the two expected subscribers,
+each acting only on its own intent names (the other logs an `Unhandled
+intent` warn, not an error, and takes no action). No double-dispatch
+observed. Feature closed.

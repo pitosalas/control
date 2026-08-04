@@ -59,7 +59,6 @@ def parse_value(value_str: str) -> Any:
 
 BEHAVIOR_COMMANDS: dict[str, str] = {
     "intent.stop": "stop",
-    "intent.explore": "explore",
     "intent.describe_scene": "describe_scene",
     "intent.count_objects": "count_objects",
     "intent.list_objects": "list_objects",
@@ -70,7 +69,6 @@ BEHAVIOR_COMMANDS: dict[str, str] = {
 
 BEHAVIOR_COMMAND_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "intent.stop":           ("Stop the robot", "intent"),
-    "intent.explore":        ("Start autonomous exploration", "intent"),
     "intent.describe_scene": ("Describe the current scene", "intent"),
     "intent.count_objects":  ("Count objects in scene", "intent"),
     "intent.list_objects":   ("List currently detected objects", "intent"),

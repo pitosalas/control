@@ -12,8 +12,7 @@ generated: "2026-05-12"
 ```python
 class SimpleCLI:
     def __init__(self):
-        default_cfg = str(Path.home() / ".control" / "config.yaml")
-        config_path = os.environ.get("CONTROL_CONFIG", default_cfg)
+        config_path = str(Path.home() / ".dome" / "config" / "control.yaml")
         self.config_manager = cm.ConfigManager.create(config_path)
         self.robot_controller = rc.RobotController(self.config_manager)
         self.intent_publisher = IntentPublisher()
@@ -21,7 +20,7 @@ class SimpleCLI:
         self.dispatcher = cd.CommandDispatcher(self.robot_controller, self.intent_publisher)
 ```
 
-Construction order: `ConfigManager` → `RobotController` → `IntentPublisher` (warmed up) → `CommandDispatcher`. `CONTROL_CONFIG` env var overrides the default config path.
+Construction order: `ConfigManager` → `RobotController` → `IntentPublisher` (warmed up) → `CommandDispatcher`. Config path is fixed at `~/.dome/config/control.yaml`.
 
 `IntentPublisher` is constructed and its `IntentApi` ROS2 node is created eagerly at startup (the `.get_api()` call). This ensures DDS publisher-subscriber discovery happens before the first intent is published, avoiding the race condition where early commands are dropped.
 
@@ -38,7 +37,7 @@ def main():
         cli.repl()
 ```
 
-Non-interactive: `ros2 run dome_control run move forward 1.0` — executes one command and exits. Interactive REPL: `prompt_toolkit` with persistent history in `~/.control/prompt_history.txt`. Commands are also timestamped to `~/.control/command_history.txt`.
+Non-interactive: `ros2 run dome_control run move forward 1.0` — executes one command and exits. Interactive REPL: `prompt_toolkit` with persistent history in `~/.dome/config/prompt_history.txt`. Commands are also timestamped to `~/.dome/config/command_history.txt`.
 
 ## execute_command
 
