@@ -4,18 +4,20 @@
 # Open Source Under MIT license
 """Feature F17 collector node.
 
-Reads UPS (INA219 over I2C) and host (/proc, /sys) stats directly, and OAK stats by
-subscribing to the vision stack's /telemetry/oak topic, merges them onto one flat
-dome_control/msg/Telemetry message, and publishes /telemetry on a timer at the
-configured rate (config/telemetry.yaml, publish_rate_hz default 1). A second timer
-appends each published message to a daily CSV (log_interval_s default 10).
+Reads host (/proc, /sys) stats directly, and UPS + OAK stats by subscribing to
+the standalone dome_telemetry package's /telemetry/battery topic and the vision
+stack's /telemetry/oak topic, merges them onto one flat dome_control/msg/Telemetry
+message, and publishes /telemetry on a timer at the configured rate
+(config/telemetry.yaml, publish_rate_hz default 1). A second timer appends each
+published message to a daily CSV (log_interval_s default 10).
 
-Subscribing (rather than opening the OAK directly) lets telemetry and the vision
-stack run at the same time — a USB device has one owner, and vision owns it. UPS is
-read directly because nothing else owns the INA219.
+Subscribing (rather than opening the INA219/OAK directly) lets telemetry share
+each hardware device with its dedicated owner: dome_telemetry owns the INA219,
+the vision stack owns the OAK — a device has one owner (F20).
 
-Sources are optional / fail-soft: if the INA219 cannot be opened, or no OakStats has
-arrived yet (vision down), those fields stay zero and the node keeps publishing.
+Sources are optional / fail-soft: if no BatteryStats/OakStats has arrived yet
+(dome_telemetry/vision down), those fields stay zero and the node keeps
+publishing.
 """
 import os
 from datetime import datetime
@@ -28,7 +30,6 @@ from dome_control.msg import Telemetry
 from dome_control.telemetry.config import load_telemetry_config
 from dome_control.telemetry.csv_logger import TelemetryCsvLogger
 from dome_control.telemetry.host_stats import HostStatsReader
-from dome_control.ups_status import SocEstimator, read_ups_stats
 
 
 def default_config_path():
@@ -37,33 +38,10 @@ def default_config_path():
     )
 
 
-class UpsReader:
-    """Owns the INA219 handle. Depends on smbus/I2C; optional."""
-
-    def __init__(self, logger, addr=0x41):
-        self.logger = logger
-        self.ina = None
-        self.estimator = SocEstimator()
-        try:
-            from dome_control.ups_status import INA219
-            self.ina = INA219(addr=addr)
-            self.logger.info("UPS INA219 opened")
-        except Exception as exc:  # noqa: BLE001 — hardware optional
-            self.logger.warn(f"UPS telemetry unavailable: {exc}")
-
-    def read(self):
-        if self.ina is None:
-            return None
-        try:
-            return read_ups_stats(self.ina, self.estimator)
-        except Exception as exc:  # noqa: BLE001
-            self.logger.warn(f"UPS read failed: {exc}")
-            return None
-
-
 def build_message(ups, oak, host, clock):
-    """Map UpsStats + latest OakStats msg + HostStats (any may be None) onto a
-    stamped Telemetry msg. `oak` is a dome_telemetry_msgs/OakStats as received on
+    """Map latest BatteryStats + OakStats msgs + HostStats (any may be None) onto a
+    stamped Telemetry msg. `ups` is a dome_telemetry_msgs/BatteryStats as received
+    on /telemetry/battery; `oak` is a dome_telemetry_msgs/OakStats as received on
     /telemetry/oak."""
     msg = Telemetry()
     msg.header.stamp = clock.now().to_msg()
@@ -103,29 +81,35 @@ class TelemetryNode(Node):
         log_interval_s = cfg["log_interval_s"]
 
         self.pub = self.create_publisher(Telemetry, "/telemetry", 10)
-        self.ups = UpsReader(self.get_logger())
         self.host = HostStatsReader()
         self.csv = TelemetryCsvLogger(max_files=cfg["max_log_files"])
         self.latest_msg = None
 
-        # OAK stats come from the vision stack so both can share the USB device.
+        # UPS and OAK stats each come from their device's dedicated owner
+        # (dome_telemetry, vision stack) so telemetry never opens hardware itself.
+        self.latest_ups = None
         self.latest_oak = None
-        from dome_telemetry_msgs.msg import OakStats
+        from dome_telemetry_msgs.msg import BatteryStats, OakStats
+        self.create_subscription(BatteryStats, "/telemetry/battery", self.on_ups, 10)
         self.create_subscription(OakStats, "/telemetry/oak", self.on_oak, 10)
 
         self.timer = self.create_timer(1.0 / rate_hz, self.tick)
         self.log_timer = self.create_timer(log_interval_s, self.log_tick)
         self.get_logger().info(
             f"TelemetryNode publishing /telemetry at {rate_hz} Hz "
-            f"(OAK via /telemetry/oak), logging CSV every {log_interval_s}s"
+            f"(UPS via /telemetry/battery, OAK via /telemetry/oak), "
+            f"logging CSV every {log_interval_s}s"
         )
+
+    def on_ups(self, msg):
+        self.latest_ups = msg
 
     def on_oak(self, msg):
         self.latest_oak = msg
 
     def tick(self):
         msg = build_message(
-            self.ups.read(), self.latest_oak, self.host.read(), self.get_clock()
+            self.latest_ups, self.latest_oak, self.host.read(), self.get_clock()
         )
         self.latest_msg = msg
         self.pub.publish(msg)

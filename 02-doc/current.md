@@ -8,7 +8,7 @@ attention.
 ## Snapshot
 
 **Branch:** `main`  
-**Last checkpoint:** 2026-06-08 — Battery SoC: replaced linear `battery_percent` with session-peak `SocEstimator`
+**Last checkpoint:** 2026-08-04 — F20: battery telemetry split into standalone `dome_telemetry` package
 
 This repo is the ROS2 control package and CLI for robot movement, launch/process
 management, map operations, configuration, scripts, and intent publishing.
@@ -45,26 +45,47 @@ management, map operations, configuration, scripts, and intent publishing.
   - `dome_voice/launch/robot.launch.py` — voice_input (Seeed board assumed)
   - `dome_vision_ros/launch/robot.launch.py` — oak camera + semantic_map + optional spin_survey
 - `TelemetryNode` (F17): publishes combined `/telemetry` (`dome_control/msg/Telemetry`,
-  flat typed fields) at `publish_rate_hz` (config/telemetry.yaml, default 1). Reads
-  UPS (INA219) directly; gets OAK by subscribing to `/telemetry/oak`
-  (`dome_telemetry_msgs/OakStats`) so it runs alongside the vision stack (no USB
-  conflict) and gains fps + perf timings. Host stats (`pi_*` incl. `pi_uptime_s`)
-  from `/proc`+`/sys`. Fail-soft per source. Foxglove plots `/telemetry.<field>` with
-  no JSON. Also logs each row to `~/.dome/telemetry/telemetryDDMMYY.csv` every
-  `log_interval_s` (default 10), keeping `max_log_files` (default 25) daily files.
-  Included in `robot.launch.py`.
-- `SocEstimator` (in `ups_status.py`): replaced linear `battery_percent`. Tracks
-  session-peak voltage as `v_full` proxy (batteries rise for ~1–2 h after charge).
-  `v_empty=9.0V`, `v_full_initial=12.18V`, `r_int=0.0Ω` (wired, disabled). INA219
-  current convention: positive=discharging, so sag correction is `voltage + I*R`.
+  flat typed fields) at `publish_rate_hz` (config/telemetry.yaml, default 1). Owns
+  no hardware: gets UPS by subscribing to `/telemetry/battery`
+  (`dome_telemetry_msgs/BatteryStats`, from the sibling `dome_telemetry` package,
+  F20) and OAK by subscribing to `/telemetry/oak` (`dome_telemetry_msgs/OakStats`)
+  so it runs alongside the vision/hardware stacks with no device conflicts. Host
+  stats (`pi_*` incl. `pi_uptime_s`) from `/proc`+`/sys`. Fail-soft per source.
+  Foxglove plots `/telemetry.<field>` with no JSON. Also logs each row to
+  `~/.dome/telemetry/telemetryDDMMYY.csv` every `log_interval_s` (default 10),
+  keeping `max_log_files` (default 25) daily files. Included in `robot.launch.py`.
+- **F20 (new, 2026-08-04)**: battery telemetry moved out of `dome_control` into a
+  new standalone sibling package `dome_telemetry` (own repo at
+  `src/dome_telemetry`, `.claude/` kit copied from `~/j3` — see feedback memory
+  on new-package scaffolding). `BatteryTelemetryNode` opens the INA219 (fail-soft)
+  on a single 60s timer and publishes `dome_telemetry_msgs/BatteryStats` on
+  `/telemetry/battery`; launched via `dome_telemetry/launch/robot.launch.py`,
+  included from `dome2`'s `gendrv.launch.py` so it starts with hardware driver
+  bringup, independent of `dome_control`/`dome_vision`/`dome_voice`. `ups_status.py`
+  (INA219 driver, `SocEstimator`, `read_ups_stats`) moved there too; `dome_control`
+  no longer imports `smbus` or opens I2C. All 7 tasks done, unit tests pass
+  (10/10 in `dome_telemetry`, 5/5 telemetry-node tests in `dome_control`) — **not
+  yet verified on real hardware**; the feature's "How to Demo" steps
+  (`bl dome2 gendrv.launch.py`, echo `/telemetry/battery` and `/telemetry`) are
+  still outstanding.
+- `SocEstimator` (now in `dome_telemetry/ups_status.py`): replaced linear
+  `battery_percent`. Tracks session-peak voltage as `v_full` proxy (batteries rise
+  for ~1–2 h after charge). `v_empty=9.0V`, `v_full_initial=12.18V`, `r_int=0.0Ω`
+  (wired, disabled). INA219 current convention: positive=discharging, so sag
+  correction is `voltage + I*R`.
 - Feature files:
-  - `F01`–`F03`, `F13`–`F15`, `F17`: done
+  - `F01`–`F03`, `F13`–`F15`, `F17`, `F20`: done
 
 ## Known Issues / Pending
 
 - **Empty STT turns**: voice turns returning empty. Debug log in `voice_input_node` shows
   `floor`/`cutoff`/`command_started`/`raw_text`. Next: observe on hardware.
 - **Wake re-trigger**: cooldown fix unconfirmed on hardware.
+- **F20 hardware verification (new, 2026-08-04)**: implementation + unit tests are
+  done, but the demo steps in `03-features/done/F20-dome-telemetry-package.md`
+  (launch `gendrv.launch.py`, confirm `/telemetry/battery` publishes every ~60s
+  with plausible values, confirm `dome_control`'s `/telemetry` still carries
+  `ups_*` fields when both are running) have not been run on the robot yet.
 - **F19 (new, 2026-08-04)**: sibling package `dome_mission` now also owns
   `/intent` (`exploration_start`/`exploration_stop`/`navigation_go`/
   `navigation_cancel`, driving Nav2 + dome_nav's `ExploreArea`).
@@ -83,9 +104,11 @@ management, map operations, configuration, scripts, and intent publishing.
 1. Resolve F19 T02 (coordinated-stop design decision), then implement F19
    T01/T03–T06 — this is currently blocking `dome2`'s F02 full-stack smoke
    test, which needs `behavior_manager` and `mission_node` running together.
-2. Test `scene describe` and `scene objects` with real oak hardware on robot.
-3. Observe empty-turn voice debug log on hardware.
-4. Split `RobotController` into smaller modules.
+2. Run F20's on-hardware demo steps (see above) to confirm `dome_telemetry`
+   actually publishes `/telemetry/battery` and `dome_control` picks it up.
+3. Test `scene describe` and `scene objects` with real oak hardware on robot.
+4. Observe empty-turn voice debug log on hardware.
+5. Split `RobotController` into smaller modules.
 
 ## Quick Commands
 
@@ -100,6 +123,10 @@ ros2 run dome_control run
 bl dome_control robot.launch.py
 bl dome_voice robot.launch.py
 bl dome_vision_ros robot.launch.py
+
+# Battery telemetry (F20) — starts with hardware driver bringup:
+bl dome2 gendrv.launch.py
+ros2 topic echo /telemetry/battery
 
 # Stub mode (no oak hardware):
 bl dome_control robot.launch.py
