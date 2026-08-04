@@ -16,9 +16,7 @@ class TestNegativeNumbers:
     def mock_robot_controller(self):
         """Create a mock robot controller."""
         mock = Mock()
-        mock.move_distance.return_value = CommandResponse(True, "Moved")
         mock.turn_radians.return_value = CommandResponse(True, "Turned")
-        mock.turn_degrees.return_value = CommandResponse(True, "Turned")
         mock.script_square.return_value = CommandResponse(True, "Square completed")
         return mock
 
@@ -26,27 +24,6 @@ class TestNegativeNumbers:
     def dispatcher(self, mock_robot_controller):
         """Create a command dispatcher with mocked robot controller."""
         return CommandDispatcher(mock_robot_controller)
-
-    def test_move_distance_positive(self, dispatcher, mock_robot_controller):
-        """Test move.distance with positive number (forward)."""
-        result = dispatcher.execute("move.distance", {"distance": 1.5})
-
-        assert result.success is True
-        mock_robot_controller.move_distance.assert_called_once_with(distance=1.5)
-
-    def test_move_distance_negative(self, dispatcher, mock_robot_controller):
-        """Test move.distance with negative number (backward)."""
-        result = dispatcher.execute("move.distance", {"distance": -1.5})
-
-        assert result.success is True
-        mock_robot_controller.move_distance.assert_called_once_with(distance=-1.5)
-
-    def test_move_distance_zero(self, dispatcher, mock_robot_controller):
-        """Test move.distance with zero."""
-        result = dispatcher.execute("move.distance", {"distance": 0.0})
-
-        assert result.success is True
-        mock_robot_controller.move_distance.assert_called_once_with(distance=0.0)
 
     def test_turn_radians_positive(self, dispatcher, mock_robot_controller):
         """Test turn.radians with positive number (counterclockwise)."""
@@ -69,27 +46,6 @@ class TestNegativeNumbers:
         assert result.success is True
         mock_robot_controller.turn_radians.assert_called_once_with(radians=0.0)
 
-    def test_turn_degrees_positive(self, dispatcher, mock_robot_controller):
-        """Test turn.degrees with positive number (counterclockwise)."""
-        result = dispatcher.execute("turn.degrees", {"degrees": 90.0})
-
-        assert result.success is True
-        mock_robot_controller.turn_degrees.assert_called_once_with(degrees=90.0)
-
-    def test_turn_degrees_negative(self, dispatcher, mock_robot_controller):
-        """Test turn.degrees with negative number (clockwise)."""
-        result = dispatcher.execute("turn.degrees", {"degrees": -90.0})
-
-        assert result.success is True
-        mock_robot_controller.turn_degrees.assert_called_once_with(degrees=-90.0)
-
-    def test_turn_degrees_zero(self, dispatcher, mock_robot_controller):
-        """Test turn.degrees with zero."""
-        result = dispatcher.execute("turn.degrees", {"degrees": 0.0})
-
-        assert result.success is True
-        mock_robot_controller.turn_degrees.assert_called_once_with(degrees=0.0)
-
     def test_script_square_positive_meters(self, dispatcher, mock_robot_controller):
         """Test script.square with positive meters."""
         result = dispatcher.execute("script.square", {"meters": 2.0})
@@ -106,10 +62,10 @@ class TestNegativeNumbers:
 
     def test_negative_string_conversion(self, dispatcher, mock_robot_controller):
         """Test that negative numbers as strings are properly converted."""
-        result = dispatcher.execute("move.distance", {"distance": "-2.5"})
+        result = dispatcher.execute("turn.radians", {"radians": "-2.5"})
 
         assert result.success is True
-        mock_robot_controller.move_distance.assert_called_once_with(distance=-2.5)
+        mock_robot_controller.turn_radians.assert_called_once_with(radians=-2.5)
 
     def test_very_small_negative_number(self, dispatcher, mock_robot_controller):
         """Test very small negative number (precision check)."""
@@ -120,7 +76,7 @@ class TestNegativeNumbers:
 
     def test_large_negative_number(self, dispatcher, mock_robot_controller):
         """Test large negative number."""
-        result = dispatcher.execute("move.distance", {"distance": -100.0})
+        result = dispatcher.execute("turn.radians", {"radians": -100.0})
 
         assert result.success is True
-        mock_robot_controller.move_distance.assert_called_once_with(distance=-100.0)
+        mock_robot_controller.turn_radians.assert_called_once_with(radians=-100.0)

@@ -86,6 +86,16 @@ class TestDispatchTextErrors:
         result = dispatcher.dispatch_text("   ")
         assert result.success is False
 
+    def test_move_distance_removed(self, dispatcher):
+        result = dispatcher.dispatch_text("move distance 1")
+        assert result.success is False
+        assert "Unknown command" in result.message
+
+    def test_turn_degrees_removed(self, dispatcher):
+        result = dispatcher.dispatch_text("turn degrees 90")
+        assert result.success is False
+        assert "Unknown command" in result.message
+
 
 class TestDispatchTextBehaviorIntents:
 

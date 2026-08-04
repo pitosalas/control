@@ -158,10 +158,6 @@ class RobotController:
                 }
         return status
 
-    def move_distance(self, distance: float) -> CommandResponse:
-        self.movement.move_dist(distance)
-        return CommandResponse(True, f"Moved {distance} meters")
-
     def move_for_time(self, seconds: float) -> CommandResponse:
         self.movement.move_time(seconds)
         return CommandResponse(True, f"Moved for {seconds} seconds")
@@ -313,9 +309,6 @@ class RobotController:
     def turn_radians(self, radians: float) -> CommandResponse:
         self.movement.turn_amount(radians)
         return CommandResponse(True, f"Turned {radians} radians")
-
-    def turn_degrees(self, degrees: float) -> CommandResponse:
-        return self.movement.turn_degrees(degrees)
 
     def get_robot_status(self) -> CommandResponse:
         linear_speed = self.config.get_variable("linear_speed")
