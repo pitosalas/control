@@ -65,12 +65,27 @@ management, map operations, configuration, scripts, and intent publishing.
 - **Empty STT turns**: voice turns returning empty. Debug log in `voice_input_node` shows
   `floor`/`cutoff`/`command_started`/`raw_text`. Next: observe on hardware.
 - **Wake re-trigger**: cooldown fix unconfirmed on hardware.
+- **F19 (new, 2026-08-04)**: sibling package `dome_mission` now also owns
+  `/intent` (`exploration_start`/`exploration_stop`/`navigation_go`/
+  `navigation_cancel`, driving Nav2 + dome_nav's `ExploreArea`).
+  `behavior_manager` was never updated for that arrival: CLI `intent.explore`
+  is dead (publishes `"explore"`, which `MotionBehavior` stubs as
+  `pass  # not yet implemented` — the live path is `nav.explore`/F18, which
+  publishes `exploration_start`). `stop` only halts cmd_vel; it does not
+  cancel an outstanding `dome_mission` goal. No live double-dispatch today
+  (the two packages' intent-name sets happen to be disjoint), but the gap is
+  real. See `03-features/notdone/F19-dome-mission-intent-integration.md` —
+  T02 (coordinated-stop design decision) needs to be resolved before T01/T03
+  can proceed.
 
 ## Likely Next Steps
 
-1. Test `scene describe` and `scene objects` with real oak hardware on robot.
-2. Observe empty-turn voice debug log on hardware.
-3. Split `RobotController` into smaller modules.
+1. Resolve F19 T02 (coordinated-stop design decision), then implement F19
+   T01/T03–T06 — this is currently blocking `dome2`'s F02 full-stack smoke
+   test, which needs `behavior_manager` and `mission_node` running together.
+2. Test `scene describe` and `scene objects` with real oak hardware on robot.
+3. Observe empty-turn voice debug log on hardware.
+4. Split `RobotController` into smaller modules.
 
 ## Quick Commands
 
