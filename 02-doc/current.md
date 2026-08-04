@@ -8,7 +8,9 @@ attention.
 ## Snapshot
 
 **Branch:** `main`  
-**Last checkpoint:** 2026-06-08 — Battery SoC: replaced linear `battery_percent` with session-peak `SocEstimator`
+**Last checkpoint:** 2026-08-04 — F19 T02 resolved (no coordinated stop); F21
+(new) D3a adds the `nav`→`mission` CLI domain rename that follows from it;
+F21 T01 (drop `move.distance`/`turn.degrees`) implemented and tested.
 
 This repo is the ROS2 control package and CLI for robot movement, launch/process
 management, map operations, configuration, scripts, and intent publishing.
@@ -65,27 +67,38 @@ management, map operations, configuration, scripts, and intent publishing.
 - **Empty STT turns**: voice turns returning empty. Debug log in `voice_input_node` shows
   `floor`/`cutoff`/`command_started`/`raw_text`. Next: observe on hardware.
 - **Wake re-trigger**: cooldown fix unconfirmed on hardware.
-- **F19 (new, 2026-08-04)**: sibling package `dome_mission` now also owns
-  `/intent` (`exploration_start`/`exploration_stop`/`navigation_go`/
-  `navigation_cancel`, driving Nav2 + dome_nav's `ExploreArea`).
-  `behavior_manager` was never updated for that arrival: CLI `intent.explore`
-  is dead (publishes `"explore"`, which `MotionBehavior` stubs as
-  `pass  # not yet implemented` — the live path is `nav.explore`/F18, which
-  publishes `exploration_start`). `stop` only halts cmd_vel; it does not
-  cancel an outstanding `dome_mission` goal. No live double-dispatch today
-  (the two packages' intent-name sets happen to be disjoint), but the gap is
-  real. See `03-features/notdone/F19-dome-mission-intent-integration.md` —
-  T02 (coordinated-stop design decision) needs to be resolved before T01/T03
-  can proceed.
+- **F19**: sibling package `dome_mission` now also owns `/intent`
+  (`exploration_start`/`exploration_stop`/`navigation_go`/`navigation_cancel`,
+  driving Nav2 + dome_nav's `ExploreArea`). `behavior_manager` was never
+  updated for that arrival: CLI `intent.explore` is still dead (publishes
+  `"explore"`, which `MotionBehavior` stubs as `pass  # not yet
+  implemented` — the live path is `nav.explore`/F18, soon `mission
+  explore`/F21). **T02 resolved (2026-08-04): no coordinated stop.** `stop`
+  stays a pure `dome_control` motor halt; cancelling an active
+  `dome_mission` goal remains a separate, explicit command (today
+  `nav cancel`/`nav explore.stop`, renamed to `mission.*` under F21). T03
+  is superseded (no wiring needed). Remaining: T01 (retire dead
+  `intent.explore`), T04 (docs), T05 (live Pi verification), T06 (tests).
+  See `03-features/notdone/F19-dome-mission-intent-integration.md`.
+- **F21 (new, 2026-08-04)**: CLI syntax orthogonality cleanup —
+  `03-features/notdone/F21-cli-syntax-orthogonality.md`. D3a renames the
+  `nav` domain to `mission` (it talks to `dome_mission`, not `dome_control`
+  navigation logic), following from F19's T02 decision. T01 done (dropped
+  `move.distance`/`turn.degrees`, kept the directional pairs +
+  `turn.radians`). Remaining: T02/T03/T03a (the `nav`→`mission` rename),
+  T04 (positional-param doc note), T05 (split `navigation_commands.py`),
+  T06 (update `02-doc/cli-reference.md`).
 
 ## Likely Next Steps
 
-1. Resolve F19 T02 (coordinated-stop design decision), then implement F19
-   T01/T03–T06 — this is currently blocking `dome2`'s F02 full-stack smoke
-   test, which needs `behavior_manager` and `mission_node` running together.
-2. Test `scene describe` and `scene objects` with real oak hardware on robot.
-3. Observe empty-turn voice debug log on hardware.
-4. Split `RobotController` into smaller modules.
+1. Implement remaining F19 tasks (T01 dead-intent removal, T04 docs, T05
+   live Pi verification, T06 tests) — this is currently blocking `dome2`'s
+   F02 full-stack smoke test, which needs `behavior_manager` and
+   `mission_node` running together.
+2. Implement F21's `nav`→`mission` rename (T02/T03/T03a/T05/T06).
+3. Test `scene describe` and `scene objects` with real oak hardware on robot.
+4. Observe empty-turn voice debug log on hardware.
+5. Split `RobotController` into smaller modules.
 
 ## Quick Commands
 
