@@ -1,6 +1,6 @@
 ---
-version: "1.1"
-generated: "2026-05-04"
+version: "1.2"
+generated: "2026-08-05"
 ---
 
 # ProcessApi: Subprocess Lifecycle Management
@@ -145,8 +145,57 @@ ps aux → filter ros/nav2/slam/rviz keywords → tabular output
 ps axo pid,pgid,ppid → filter ros2 launch → parent-only display
 ```
 
+## Subsystem Status (F22)
+
+`get_subsystem_status` answers a different question than `list_ros_processes`: not "what ROS-ish things are running" but "for each of these six named subsystems specifically, is it up, and what process(es) back it?" It reuses the same `ps aux` scan and a shared `_parse_ps_aux_line` helper (extracted from `list_ros_processes` so the two don't duplicate the column-splitting logic), but classifies each line against a per-subsystem keyword map instead of one flat list:
+
+```python
+SUBSYSTEM_KEYWORDS = {
+    "gendrv": ["micro_ros_agent"],
+    "nav": ["slam_manager_node", "explorer_manager_node", "slam_toolbox", "bt_navigator", "amcl"],
+    "semantic": ["semantic_map_node"],
+    "control": ["behavior_manager"],
+    "mission": ["mission_node"],
+    "vision": ["dome_vision_ros_node"],
+}
+
+def get_subsystem_status(self) -> dict[str, dict]:
+    status = {name: {"running": False, "processes": []} for name in SUBSYSTEM_KEYWORDS}
+    ...
+    for line in result.stdout.split("\n")[1:]:
+        info = self._parse_ps_aux_line(line)
+        if info is None:
+            continue
+        line_lower = line.lower()
+        for name, keywords in SUBSYSTEM_KEYWORDS.items():
+            if any(kw in line_lower for kw in keywords):
+                status[name]["running"] = True
+                status[name]["processes"].append(info)
+    return status
+```
+
+Every subsystem key is always present in the returned dict — even ones matching zero processes — so callers (`RobotController.get_subsystems_status`) never need a membership check, only a `["running"]` read. A single process can satisfy more than one subsystem's keyword list independently; the loop doesn't `break` on first match. On a `ps aux` failure (non-zero return code) or timeout, the method fails soft: it returns the same all-`False` shape rather than raising, so a caller building a status table never has to special-case a partial result.
+
+`get_mission_state` fills in the one piece `ps aux` can't see: `mission`'s live FSM state (`IDLE`/`EXPLORING`/...), which only exists on `dome_mission`'s `/mission/state` topic, not in any process's command line. It mirrors `IntentApi.publish`'s reply-wait shape (`ros2_api/intent_api.py`) — subscribe, then `rclpy.spin_once` in a deadline loop — rather than inventing a new blocking-read pattern:
+
+```python
+def get_mission_state(self, timeout_s: float = 1.0) -> str:
+    ...
+    subscription = self.create_subscription(String, "/mission/state", on_state, qos)
+    try:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline and received["value"] is None:
+            rclpy.spin_once(self, timeout_sec=0.1)
+    finally:
+        self.destroy_subscription(subscription)
+    return received["value"] if received["value"] is not None else "unknown"
+```
+
+The subscription is transient — created and torn down within the call — because `ProcessApi` isn't otherwise subscribed to mission state; keeping a permanent subscription alive for a value only read on demand would be wasted upkeep. `"unknown"` is returned (not an exception) when nothing arrives within the deadline, since that's an expected steady state (mission not running, or running on a pre-F22 build without the publisher), not an error condition.
+
 ## Observations
 
 - **Parameter formatting is complex.** `launch_by_type` has distinct code paths for `bl` commands, `ros2 run`, and launch files. This fragility could be replaced with a strategy object per command type.
-- **`list_ros_processes` leaks shell knowledge.** The hardcoded keyword list `["ros2", "nav2", "slam", "rviz", ...]` will miss new components and is not tested.
+- **`list_ros_processes` leaks shell knowledge.** The hardcoded keyword list `["ros2", "nav2", "slam", "rviz", ...]` will miss new components and is not tested. `SUBSYSTEM_KEYWORDS` is the same idea at finer grain, and inherits the same risk: a subsystem's binary name changing silently breaks its detection.
 - **Circular import via string.** `kill_ros_process` and `list_*` import `CommandResponse` inline to avoid circular imports. The fix is to move `CommandResponse` to its own module.
+- **`get_mission_state` is the only per-subsystem introspection.** The other five subsystems report only running/not-running; deeper state (Nav2/vision lifecycle, `/telemetry` snapshots) is deliberately out of scope for F22 and flagged as a follow-up in the feature file.

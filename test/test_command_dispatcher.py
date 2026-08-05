@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
+
+from dome_control.commands.command_def import CommandDef
 from dome_control.commands.command_dispatcher import CommandDispatcher
 from dome_control.commands.parameter_def import ParameterDef
-from dome_control.commands.command_def import CommandDef
 from dome_control.commands.robot_controller import CommandResponse
 
 
@@ -127,4 +129,56 @@ class TestCommandDispatcher:
         assert "movement" in groups
         assert "launch" in groups
         assert "control" in groups
+
+    def test_nav_domain_renamed_to_mission(self, dispatcher, mock_robot_controller):
+        """F21 D3/D3a: nav.* renamed to mission.* (3-level start/stop/status);
+        the old nav.* names must no longer resolve."""
+        mock_robot_controller.publish_intent_navigation_go.return_value = (
+            CommandResponse(True, "ok")
+        )
+        mock_robot_controller.publish_intent_navigation_cancel.return_value = (
+            CommandResponse(True, "ok")
+        )
+        mock_robot_controller.publish_intent_exploration_start.return_value = (
+            CommandResponse(True, "ok")
+        )
+        mock_robot_controller.publish_intent_exploration_stop.return_value = (
+            CommandResponse(True, "ok")
+        )
+        mock_robot_controller.explore_status.return_value = CommandResponse(True, "idle")
+
+        assert dispatcher.dispatch_text("mission go start kitchen").success is True
+        mock_robot_controller.publish_intent_navigation_go.assert_called_once_with(
+            label="kitchen"
+        )
+        assert dispatcher.dispatch_text("mission go stop").success is True
+        mock_robot_controller.publish_intent_navigation_cancel.assert_called_once()
+        assert dispatcher.dispatch_text("mission explore start").success is True
+        mock_robot_controller.publish_intent_exploration_start.assert_called_once()
+        assert dispatcher.dispatch_text("mission explore stop").success is True
+        mock_robot_controller.publish_intent_exploration_stop.assert_called_once()
+        assert dispatcher.dispatch_text("mission explore status").success is True
+        mock_robot_controller.explore_status.assert_called_once()
+
+        assert dispatcher.execute("nav.go", {"label": "kitchen"}).success is False
+        assert dispatcher.execute("nav.cancel", {}).success is False
+        assert dispatcher.execute("nav.explore", {}).success is False
+        assert dispatcher.execute("nav.explore.stop", {}).success is False
+        assert dispatcher.execute("nav.explore.status", {}).success is False
+
+    def test_map_and_mission_groups_split(self, dispatcher):
+        """F21 D5: navigation_commands.py split into map_commands.py +
+        mission_commands.py, group metadata renamed nav -> mission."""
+        map_commands = dispatcher.list_commands(group="map")
+        mission_commands = dispatcher.list_commands(group="mission")
+
+        assert set(map_commands) == {"map.save", "map.list", "map.serialize"}
+        assert set(mission_commands) == {
+            "mission.go.start",
+            "mission.go.stop",
+            "mission.explore.start",
+            "mission.explore.stop",
+            "mission.explore.status",
+        }
+        assert dispatcher.list_commands(group="nav") == []
 

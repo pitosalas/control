@@ -395,3 +395,8 @@ class RobotController:
     def start_survey(self) -> CommandResponse:
         success, message = self.survey.start()
         return CommandResponse(success, message)
+
+    def get_subsystems_status(self) -> CommandResponse:
+        subsystems = self.process.get_subsystem_status()
+        subsystems["mission"]["state"] = self.process.get_mission_state()
+        return CommandResponse(True, "Subsystem status", {"subsystems": subsystems})

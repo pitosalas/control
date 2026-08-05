@@ -1,7 +1,7 @@
 # Tasks for Feature F22
 
 ## T01 — Subsystem keyword map + process detection
-**Status**: not done
+**Status**: done
 **Description**: In `dome_control/ros2_api/process_api.py`, add a module-level
 keyword map (mirrors the `ros_keywords` list already used in
 `list_ros_processes()`, `process_api.py:461`):
@@ -28,7 +28,7 @@ others; assert each subsystem's `running` flag and process list are correct,
 including the case where zero subsystems match.
 
 ## T02 — `/mission/state` publisher in `dome_mission`
-**Status**: not done
+**Status**: done
 **Description**: Touches `~/ros2_ws/src/dome_mission`, not `dome_control`.
 In `dome_mission/dome_mission/mission_node.py`, add a `std_msgs/String`
 publisher on `/mission/state`, published once at startup and again on every
@@ -43,8 +43,20 @@ transition and assert the publisher's last message matches the new state
 name. Record here once done, since this repo's task file is the record of
 scope, but the actual test lives in `dome_mission`.
 
+**Done 2026-08-05**: added `self.state_pub` (transient-local `QoSProfile`)
+and `publish_mission_state()` to `MissionNode`, called once in `__init__`
+and again in `on_intent` right after the existing log line. Only the
+`on_intent`-driven transition is published, per this task's scope — FSM
+transitions triggered later by async action callbacks (e.g.
+`on_explore_response`'s `on_done(STOPPED)` when no server is available) are
+not separately published; the CLI's read (T03) just sees whatever the FSM
+settles on next. Tests added in `dome_mission/test/test_mission_node.py`:
+`test_mission_state_published_on_startup`,
+`test_mission_state_published_on_transition`. `dome_mission` full suite:
+47/47 passing.
+
 ## T03 — `RobotController.get_subsystems_status()`
-**Status**: not done
+**Status**: done
 **Description**: Add a method to `RobotController`
 (`dome_control/commands/robot_controller.py`) that calls
 `self.process.get_subsystem_status()` (T01), then enriches the `mission` row
@@ -61,7 +73,7 @@ has all six subsystems and mission's state field reflects the mocked value,
 and reflects `"unknown"` when nothing is published within the deadline.
 
 ## T04 — CLI table formatting
-**Status**: not done
+**Status**: done
 **Description**: In `simple_cli.py`, format `robot subsystems`' response
 using the existing `format_table` helper (`simple_cli.py:23`) — columns:
 `SUBSYSTEM`, `RUNNING`, `DETAIL` (process count for five subsystems, FSM
@@ -71,7 +83,7 @@ renders expected columns/values for a representative status dict (mix of
 running/not-running, including mission with a known state).
 
 ## T05 — Docs
-**Status**: not done
+**Status**: done
 **Description**: Add `robot subsystems` to `02-doc/cli-reference.md` and add
 a line to `02-doc/current.md`'s "What Is Built" documenting the command and
 the `/mission/state` topic it depends on for mission detail.
@@ -94,3 +106,12 @@ together cover: correct classification per subsystem, the "nothing running"
 case, mission's live-state enrichment (both present and `"unknown"`
 fallback), and the CLI table rendering. Fill any gap found; record T06's
 manual notes here once available.
+
+**Progress 2026-08-05**: coverage confirmed present for everything except
+T06's live-hardware notes: `test_process_api_subsystems.py` covers
+per-subsystem classification, multiple subsystems matching independently,
+and the all-not-running/ps-failure cases; `test_robot_controller_subsystems.py`
+covers mission-state enrichment present and `"unknown"`; `test_simple_cli_formatting.py::test_print_subsystems_uses_table`
+covers CLI rendering; `dome_mission/test/test_mission_node.py` covers the
+`/mission/state` publisher (T02). `dome_control` suite: 210/210 passing.
+Left open pending T06 (needs the physical robot).

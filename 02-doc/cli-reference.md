@@ -58,6 +58,7 @@ Abbreviations: `robot`→`r`, `stop`→`stp`, `status`→`sts`.
 | `robot stop` | none | Halt movement immediately (direct `cmd_vel`, not via `/intent`) |
 | `robot status` | none | Configured speeds, launch-process status, ROS2 API node status |
 | `robot speak <text>` | `text: str` (remaining tokens joined) | Speak text aloud via speech output |
+| `robot subsystems` | none | Running/not-running status for `gendrv`/`nav`/`semantic`/`control`/`mission`/`vision`, detected via a `ps aux` keyword grep per subsystem; `mission`'s row also shows its live FSM state (`IDLE`/`EXPLORING`/etc., read from `/mission/state`, `"unknown"` if nothing is published within ~1s) |
 
 ## Map — `map.*`
 
@@ -69,17 +70,20 @@ Abbreviations: none for `map`; `save`→`sav`, `list`→`lst`, `serialize`→`se
 | `map list` | none | List saved maps |
 | `map serialize` | none | Save current map in SLAM Toolbox serialized format, using `map_name` |
 
-## Navigation — `nav.*`
+## Mission — `mission.*`
 
-No abbreviation for `nav`; `stop`→`stp`, `status`→`sts` apply to subactions.
+No abbreviation for `mission`; `start`→`sta`, `stop`→`stp`, `status`→`sts`
+apply to the third token. Renamed from `nav` (F21 D3a) — every command in
+this domain talks to `dome_mission`, not to navigation logic in
+`dome_control`.
 
 | Command | Args | Description |
 |---|---|---|
-| `nav go <label>` | `label: str` | Navigate to the nearest confirmed object with this label (publishes `navigation_go` to `/intent`, owned by `dome_mission`) |
-| `nav cancel` | none | Cancel the current navigation goal (publishes `navigation_cancel`) |
-| `nav explore` | none | Start autonomous frontier exploration (publishes `exploration_start`) |
-| `nav explore stop` | none | Stop exploration (publishes `exploration_stop`) |
-| `nav explore status` | none | Read `/explore/status` (shells out to `ros2 topic echo --once`, 3s timeout) |
+| `mission go start <label>` | `label: str` | Navigate to the nearest confirmed object with this label (publishes `navigation_go` to `/intent`, owned by `dome_mission`) |
+| `mission go stop` | none | Cancel the current navigation goal (publishes `navigation_cancel`) |
+| `mission explore start` | none | Start autonomous frontier exploration (publishes `exploration_start`) |
+| `mission explore stop` | none | Stop exploration (publishes `exploration_stop`) |
+| `mission explore status` | none | Read `/explore/status` (shells out to `ros2 topic echo --once`, 3s timeout) |
 
 ## Launch — `launch.*`
 
@@ -157,7 +161,7 @@ successfully, but are exact duplicates of `robot.stop`/`scene.*` (same
 | Command | Status |
 |---|---|
 | `intent stop` | Works — duplicates `robot.stop`'s effect via a different path (`/intent` → `behavior_manager` → `MotionBehavior`, which also just halts `cmd_vel`) |
-| `intent explore` | **No-op.** `MotionBehavior.execute` has `elif intent.name == "explore": pass  # not yet implemented`. Live exploration is `nav.explore`, a different intent (`exploration_start`) |
+| `intent explore` | **No-op.** `MotionBehavior.execute` has `elif intent.name == "explore": pass  # not yet implemented`. Live exploration is `mission.explore.start`, a different intent (`exploration_start`) |
 | `intent describe_scene` | Works, duplicates `scene describe` |
 | `intent count_objects` | **No-op**, same stub as `scene count` |
 | `intent list_objects` | Works, duplicates `scene objects` |

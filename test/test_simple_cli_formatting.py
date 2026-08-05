@@ -64,3 +64,23 @@ def test_print_status_uses_named_tables(capsys):
     assert "RUNNING" in output
     assert "yes" in output
     assert "movement_api" in output
+
+
+def test_print_subsystems_uses_table(capsys):
+    cli = object.__new__(SimpleCLI)
+
+    cli.print_data({
+        "subsystems": {
+            "gendrv": {"running": False, "processes": []},
+            "control": {"running": True, "processes": [{"pid": "1"}]},
+            "mission": {"running": True, "processes": [{"pid": "2"}], "state": "EXPLORING"},
+        },
+    })
+
+    output = capsys.readouterr().out
+    assert "SUBSYSTEM" in output
+    assert "RUNNING" in output
+    assert "DETAIL" in output
+    assert "gendrv" in output and "no" in output
+    assert "control" in output
+    assert "mission" in output and "EXPLORING" in output

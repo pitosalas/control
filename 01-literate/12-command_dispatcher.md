@@ -16,7 +16,8 @@ def _build_command_registry(self) -> dict[str, cd.CommandDef]:
     commands = {}
     commands.update(mov_cmd.build_movement_commands())
     commands.update(ctrl_cmd.build_control_commands())
-    commands.update(nav_cmd.build_navigation_commands())
+    commands.update(map_cmd.build_map_commands())
+    commands.update(msn_cmd.build_mission_commands())
     commands.update(lch_cmd.build_launch_commands())
     commands.update(sys_cmd.build_system_commands())
     commands.update(surv_cmd.build_survey_commands())
@@ -25,7 +26,7 @@ def _build_command_registry(self) -> dict[str, cd.CommandDef]:
     return commands
 ```
 
-Each `build_*` function returns a dict of `"group.command" → CommandDef`. Behavior commands (intent and scene forms) are now registered here too — they appear in help output alongside direct commands, and the registry becomes the single source of truth for `get_command_info` lookups. The flat merge means duplicate names from different modules would silently shadow each other. Survey commands were added 2026-05-14 when `SpinSurvey` moved from `dome_vision` to `dome_control`.
+Each `build_*` function returns a dict of `"group.command" → CommandDef`. Behavior commands (intent and scene forms) are now registered here too — they appear in help output alongside direct commands, and the registry becomes the single source of truth for `get_command_info` lookups. The flat merge means duplicate names from different modules would silently shadow each other. Survey commands were added 2026-05-14 when `SpinSurvey` moved from `dome_vision` to `dome_control`. `map_cmd`/`msn_cmd` replaced a single `nav_cmd` module (F21 D3a/D5): the old `navigation_commands.py` mixed the `map` and `nav` groups in one file under a misleading name, so it was split into `map_commands.py` and `mission_commands.py`, and the `nav` domain was renamed `mission` throughout.
 
 ## The Execute Path
 
@@ -99,17 +100,17 @@ def resolve_keyword(word: str) -> str:
     return ABBREV_TO_FULL.get(word, word)
 ```
 
-Unknown tokens pass through unchanged; errors surface at execution time. Note that `"stp"` expands to `"stop"` and `"sts"` to `"status"` — these are the expansions that make three-part commands like `nav explore stp` resolve correctly to `nav.explore.stop`.
+Unknown tokens pass through unchanged; errors surface at execution time. Note that `"stp"` expands to `"stop"` and `"sts"` to `"status"` — these are the expansions that make three-part commands like `mission explore stp` resolve correctly to `mission.explore.stop`.
 
 ## Subcommand Detection: 3-Token Candidate First
 
-After resolving the first token, the parser now tries a **three-token candidate before falling back to two-token**. This is the key design decision that lets `nav explore stop` and `nav explore status` route to distinct leaf commands rather than both hitting `nav.explore`:
+After resolving the first token, the parser now tries a **three-token candidate before falling back to two-token**. This is the key design decision that lets `mission explore stop` and `mission explore status` route to distinct leaf commands rather than both hitting `mission.explore`:
 
 ```python
 second = resolve_keyword(tokens[1])
 candidate2 = f"{command}.{second}"
 
-# Try 3-token candidate first so "nav explore stop" hits nav.explore.stop
+# Try 3-token candidate first so "mission explore stop" hits mission.explore.stop
 if len(tokens) >= 3:
     third = resolve_keyword(tokens[2])
     candidate3 = f"{command}.{second}.{third}"
@@ -136,7 +137,7 @@ else:
 
 The priority order is: **3-token match > 2-token match > 1-token match**. The 2-token fallback fires when the 3-token candidate is not found in either the command registry or `BEHAVIOR_COMMANDS` but the second token is recognizable (either a known full name, an abbreviation that was expanded, or a known compound command). If none of those conditions hold, the input is treated as a single-word command with all remaining tokens as positional arguments.
 
-Why prioritize 3-token? The problem without it: `nav explore stop` would form `candidate2 = "nav.explore"`, find it in the registry, and pass `"stop"` as an argument to a command that doesn't expect one. With 3-token priority, `candidate3 = "nav.explore.stop"` is tested first; if that leaf exists it wins cleanly, and `tokens[3:]` (empty here) become the args.
+Why prioritize 3-token? The problem without it: `mission explore stop` would form `candidate2 = "mission.explore"`, find it in the registry, and pass `"stop"` as an argument to a command that doesn't expect one. With 3-token priority, `candidate3 = "mission.explore.stop"` is tested first; if that leaf exists it wins cleanly, and `tokens[3:]` (empty here) become the args.
 
 ## Dispatch Flow Diagram
 

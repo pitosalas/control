@@ -10,13 +10,13 @@ from typing import Any
 import dome_control.commands.command_def as cd
 import dome_control.commands.control_commands as ctrl_cmd
 import dome_control.commands.launch_commands as lch_cmd
+import dome_control.commands.map_commands as map_cmd
+import dome_control.commands.mission_commands as msn_cmd
 import dome_control.commands.movement_commands as mov_cmd
-import dome_control.commands.navigation_commands as nav_cmd
 import dome_control.commands.parameter_def as paramdef_mod
 import dome_control.commands.robot_controller as rc
 import dome_control.commands.survey_commands as surv_cmd
 import dome_control.commands.system_commands as sys_cmd
-
 
 ABBREV_TO_FULL = {
     "m": "move", "t": "turn", "r": "robot", "lch": "launch",
@@ -93,7 +93,8 @@ class CommandDispatcher:
         commands = {}
         commands.update(mov_cmd.build_movement_commands())
         commands.update(ctrl_cmd.build_control_commands())
-        commands.update(nav_cmd.build_navigation_commands())
+        commands.update(map_cmd.build_map_commands())
+        commands.update(msn_cmd.build_mission_commands())
         commands.update(lch_cmd.build_launch_commands())
         commands.update(sys_cmd.build_system_commands())
         commands.update(surv_cmd.build_survey_commands())
@@ -205,7 +206,7 @@ class CommandDispatcher:
             second = resolve_keyword(tokens[1])
             candidate2 = f"{command}.{second}"
 
-            # Try 3-token candidate first so "nav explore stop" hits nav.explore.stop
+            # Try 3-token candidate first so "mission explore stop" hits mission.explore.stop
             if len(tokens) >= 3:
                 third = resolve_keyword(tokens[2])
                 candidate3 = f"{command}.{second}.{third}"

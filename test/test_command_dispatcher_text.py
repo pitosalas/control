@@ -152,42 +152,50 @@ class TestDispatchTextBehaviorIntents:
         rc.stop_robot.assert_called_once()
 
 
-class TestNavCommands:
+class TestMissionCommands:
 
-    def test_nav_go_calls_navigation_go(self, dispatcher, rc):
+    def test_mission_go_start_calls_navigation_go(self, dispatcher, rc):
         rc.publish_intent_navigation_go.return_value = CommandResponse(True, "Intent published: navigation_go")
-        result = dispatcher.dispatch_text("nav go chair")
+        result = dispatcher.dispatch_text("mission go start chair")
         assert result.success is True
         rc.publish_intent_navigation_go.assert_called_once_with(label="chair")
 
-    def test_nav_cancel_calls_navigation_cancel(self, dispatcher, rc):
+    def test_mission_go_stop_calls_navigation_cancel(self, dispatcher, rc):
         rc.publish_intent_navigation_cancel.return_value = CommandResponse(True, "Intent published: navigation_cancel")
-        result = dispatcher.dispatch_text("nav cancel")
+        result = dispatcher.dispatch_text("mission go stop")
         assert result.success is True
         rc.publish_intent_navigation_cancel.assert_called_once()
 
-    def test_nav_explore_calls_exploration_start(self, dispatcher, rc):
+    def test_mission_explore_start_calls_exploration_start(self, dispatcher, rc):
         rc.publish_intent_exploration_start.return_value = CommandResponse(True, "Intent published: exploration_start")
-        result = dispatcher.dispatch_text("nav explore")
+        result = dispatcher.dispatch_text("mission explore start")
         assert result.success is True
         rc.publish_intent_exploration_start.assert_called_once()
 
-    def test_nav_explore_stop_calls_exploration_stop(self, dispatcher, rc):
+    def test_mission_explore_stop_calls_exploration_stop(self, dispatcher, rc):
         rc.publish_intent_exploration_stop.return_value = CommandResponse(True, "Intent published: exploration_stop")
-        result = dispatcher.dispatch_text("nav explore stop")
+        result = dispatcher.dispatch_text("mission explore stop")
         assert result.success is True
         rc.publish_intent_exploration_stop.assert_called_once()
 
-    def test_nav_explore_status_calls_explore_status(self, dispatcher, rc):
+    def test_mission_explore_status_calls_explore_status(self, dispatcher, rc):
         rc.explore_status.return_value = CommandResponse(True, "explore status: exploring")
-        result = dispatcher.dispatch_text("nav explore status")
+        result = dispatcher.dispatch_text("mission explore status")
         assert result.success is True
         rc.explore_status.assert_called_once()
 
-    def test_nav_explore_status_does_not_publish_intent(self, dispatcher, rc):
+    def test_mission_explore_status_does_not_publish_intent(self, dispatcher, rc):
         rc.explore_status.return_value = CommandResponse(True, "explore status: idle")
-        dispatcher.dispatch_text("nav explore status")
+        dispatcher.dispatch_text("mission explore status")
         rc.publish_intent_exploration_start.assert_not_called()
+
+    def test_nav_domain_no_longer_resolves(self, dispatcher, rc):
+        """F21 D3a: nav renamed to mission, old nav.* forms return Unknown command."""
+        assert dispatcher.dispatch_text("nav go chair").success is False
+        assert dispatcher.dispatch_text("nav cancel").success is False
+        assert dispatcher.dispatch_text("nav explore").success is False
+        assert dispatcher.dispatch_text("nav explore stop").success is False
+        assert dispatcher.dispatch_text("nav explore status").success is False
 
 
 class TestDispatchTextValueParsing:

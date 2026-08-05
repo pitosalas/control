@@ -214,6 +214,9 @@ class SimpleCLI:
             if "status" in data and isinstance(data["status"], dict):
                 self.print_status(data["status"])
                 return
+            if "subsystems" in data and isinstance(data["subsystems"], dict):
+                self.print_subsystems(data["subsystems"])
+                return
 
             for key, value in data.items():
                 if isinstance(value, dict):
@@ -280,6 +283,25 @@ class SimpleCLI:
                 for name, state in sorted(nodes.items())
             ]
             print(format_table(rows, [("name", "NAME"), ("state", "STATE")]))
+
+    def print_subsystems(self, subsystems: dict) -> None:
+        rows = [
+            {
+                "subsystem": name,
+                "running": entry.get("running"),
+                "detail": entry["state"] if name == "mission"
+                          else str(len(entry.get("processes", []))),
+            }
+            for name, entry in sorted(subsystems.items())
+        ]
+        print(format_table(
+            rows,
+            [
+                ("subsystem", "SUBSYSTEM"),
+                ("running", "RUNNING"),
+                ("detail", "DETAIL"),
+            ],
+        ))
 
     def log_command(self, command: str) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")

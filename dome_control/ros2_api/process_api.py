@@ -15,8 +15,21 @@ class CommandConfig:
     log_name: Optional[str]
     timeout: float
 
+import rclpy
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
+from std_msgs.msg import String
+
 from dome_control.commands.config_manager import ConfigManager
 from dome_control.ros2_api.base_api import BaseApi
+
+SUBSYSTEM_KEYWORDS = {
+    "gendrv": ["micro_ros_agent"],
+    "nav": ["slam_manager_node", "explorer_manager_node", "slam_toolbox", "bt_navigator", "amcl"],
+    "semantic": ["semantic_map_node"],
+    "control": ["behavior_manager"],
+    "mission": ["mission_node"],
+    "vision": ["dome_vision_ros_node"],
+}
 
 
 @dataclass
@@ -458,6 +471,12 @@ class ProcessApi(BaseApi):
         except OSError as e:
             return CommandResponse(False, f"Error killing process: {e}")
 
+    def _parse_ps_aux_line(self, line: str) -> dict | None:
+        parts = line.split(None, 10)
+        if len(parts) < 11:
+            return None
+        return {"pid": parts[1], "cpu": parts[2], "mem": parts[3], "command": parts[10]}
+
     def list_ros_processes(self) -> "CommandResponse":
         from dome_control.commands.robot_controller import CommandResponse
         try:
@@ -470,14 +489,15 @@ class ProcessApi(BaseApi):
             ros_keywords = ["ros2", "nav2", "slam", "rviz", "gazebo", "amcl", "map_server", "robot_state"]
             process_info = []
             for line in result.stdout.split("\n")[1:]:
-                if any(kw in line.lower() for kw in ros_keywords):
-                    parts = line.split(None, 10)
-                    if len(parts) >= 11:
-                        pid, cpu, mem = parts[1], parts[2], parts[3]
-                        command = parts[10]
-                        if len(command) > 101:
-                            command = command[:98] + "..."
-                        process_info.append({"pid": pid, "cpu": cpu, "mem": mem, "command": command})
+                if not any(kw in line.lower() for kw in ros_keywords):
+                    continue
+                info = self._parse_ps_aux_line(line)
+                if info is None:
+                    continue
+                command = info["command"]
+                if len(command) > 101:
+                    command = command[:98] + "..."
+                process_info.append({**info, "command": command})
 
             if not process_info:
                 return CommandResponse(True, "No ROS processes found")
@@ -492,6 +512,51 @@ class ProcessApi(BaseApi):
             return CommandResponse(False, "Process listing timed out")
         except Exception as e:
             return CommandResponse(False, f"Error listing processes: {e}")
+
+    def get_subsystem_status(self) -> dict[str, dict]:
+        """Report running/not-running and matching processes for each of
+        SUBSYSTEM_KEYWORDS, from a single `ps aux` snapshot."""
+        status = {name: {"running": False, "processes": []} for name in SUBSYSTEM_KEYWORDS}
+        try:
+            result = subprocess.run(
+                ["ps", "aux"], check=False, capture_output=True, text=True, timeout=5
+            )
+        except subprocess.TimeoutExpired:
+            return status
+        if result.returncode != 0:
+            return status
+
+        for line in result.stdout.split("\n")[1:]:
+            info = self._parse_ps_aux_line(line)
+            if info is None:
+                continue
+            line_lower = line.lower()
+            for name, keywords in SUBSYSTEM_KEYWORDS.items():
+                if any(kw in line_lower for kw in keywords):
+                    status[name]["running"] = True
+                    status[name]["processes"].append(info)
+
+        return status
+
+    def get_mission_state(self, timeout_s: float = 1.0) -> str:
+        """Read the latest /mission/state value (transient-local String),
+        waiting up to timeout_s. Returns "unknown" if nothing arrives —
+        e.g. dome_mission not running, or running without the publisher."""
+        received = {"value": None}
+
+        def on_state(msg: String) -> None:
+            received["value"] = msg.data
+
+        qos = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        subscription = self.create_subscription(String, "/mission/state", on_state, qos)
+        try:
+            deadline = time.monotonic() + timeout_s
+            while time.monotonic() < deadline and received["value"] is None:
+                rclpy.spin_once(self, timeout_sec=0.1)
+        finally:
+            self.destroy_subscription(subscription)
+
+        return received["value"] if received["value"] is not None else "unknown"
 
     def list_launch_processes(self) -> "CommandResponse":
         from dome_control.commands.robot_controller import CommandResponse

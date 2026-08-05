@@ -1,6 +1,6 @@
 ---
-version: "1.4"
-generated: "2026-06-24"
+version: "1.5"
+generated: "2026-08-05"
 ---
 
 # RobotController: Orchestrating Robot Operations
@@ -215,6 +215,19 @@ def start_survey(self) -> CommandResponse:
 ```
 
 No DDS discovery sleep is needed here because `SurveyApi.start()` calls `wait_for_service()` internally before sending the request.
+
+## Subsystem Status Rollup (F22)
+
+`get_subsystems_status` is a thin composition method: it asks `ProcessApi` for the six-subsystem snapshot, then enriches just the `mission` entry with a live FSM-state read, and wraps the result the way every other structured response is wrapped — a `CommandResponse` whose `data` carries a named key (`"subsystems"`) that the CLI layer (`simple_cli.py`) knows how to render as a table:
+
+```python
+def get_subsystems_status(self) -> CommandResponse:
+    subsystems = self.process.get_subsystem_status()
+    subsystems["mission"]["state"] = self.process.get_mission_state()
+    return CommandResponse(True, "Subsystem status", {"subsystems": subsystems})
+```
+
+This follows the same "enrich one dict in place" shape as `get_robot_status`'s combination of speeds/processes/nodes — `RobotController` composes what several lower-level APIs each know a piece of, rather than any one of them owning the full picture. `mission` is singled out for the extra read because it's the only subsystem in F22's scope with no other externally observable state: the other five are correctly described by running/not-running alone, but `mission`'s FSM state is the whole point of checking it.
 
 ## Observations
 

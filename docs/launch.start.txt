@@ -12,6 +12,10 @@ PARAMETERS:
   use_sim_time    Whether to use simulation time (true/false)
   map_name        Name of the map to use
 
+  use_sim_time and map_name are optional and positional: supply them in
+  order, or omit them entirely. There is no way to skip use_sim_time and
+  supply only map_name.
+
 EXAMPLES:
   launch start map false my_map
   lch sta teleop false none

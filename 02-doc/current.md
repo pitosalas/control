@@ -8,17 +8,21 @@ attention.
 ## Snapshot
 
 **Branch:** `main`  
-**Last checkpoint:** 2026-08-04 — F19 closed out (dome_mission `/intent`
-integration: dead `intent.explore` removed, split ownership documented, live
-Pi verification done — see `03-features/done/F19-dome-mission-intent-integration.md`).
+**Last checkpoint:** 2026-08-05 — **F21 closed** (all tasks T01–T06 done):
+`nav` domain renamed to `mission` throughout the CLI (`mission.go.start`,
+`mission.go.stop`, `mission.explore.start`, `mission.explore.stop`,
+`mission.explore.status`), `navigation_commands.py` split into
+`map_commands.py` + `mission_commands.py` (`command_dispatcher.py` updated
+to import/register both), `02-doc/cli-reference.md` and `docs/launch.start.txt`
+updated for the rename and the positional-optional-parameter note.
+**F22 (`robot subsystems` status command) nearly done**: T01/T02/T03/T04/T05/T07
+all done — `ProcessApi.get_subsystem_status()` + `get_mission_state()`,
+`RobotController.get_subsystems_status()`, `robot.subsystems` CLI command
+with table output, `dome_mission`'s `/mission/state` publisher. Only T06
+(live Pi hardware verification) remains. 210 tests passing.
 Control config moved from `~/.control/config.yaml` to
 `~/.dome/config/control.yaml`, with the `CONTROL_CONFIG` env var override
-dropped (path is now fixed). F21 (new) D3a adds the `nav`→`mission` CLI
-domain rename that follows from F19's T02; F21 T01 (drop
-`move.distance`/`turn.degrees`) implemented and tested. F22 (new) scoped and
-approved — cross-package `robot subsystems` status command
-(gendrv/nav/semantic/control/mission/vision) — not started, see
-`03-features/notdone/F22-subsystem-status-command.md`.
+dropped (path is now fixed).
 
 This repo is the ROS2 control package and CLI for robot movement, launch/process
 management, map operations, configuration, scripts, and intent publishing.
@@ -77,10 +81,20 @@ management, map operations, configuration, scripts, and intent publishing.
     `navigation_cancel`.
   No coordinated stop: `stop` is a pure `dome_control` motor halt with no
   knowledge of `dome_mission`'s FSM state; cancelling an active mission goal
-  is the separate, explicit `nav cancel`/`nav explore.stop` (renamed to
-  `mission.*` under F21).
+  is the separate, explicit `mission.go.stop`/`mission.explore.stop` (F21
+  renamed the `nav` domain to `mission`).
+- `dome_mission`'s `mission_node.py` publishes its FSM state (`IDLE`/
+  `EXPLORING`/etc.) on `/mission/state` (`std_msgs/String`, transient-local
+  QoS) on startup and every `/intent`-driven transition (F22 T02) — consumed
+  by `robot subsystems`' `mission` row.
+- `robot subsystems` (F22): reports running/not-running for `gendrv`/`nav`/
+  `semantic`/`control`/`mission`/`vision` via a per-subsystem `ps aux`
+  keyword grep (`ProcessApi.get_subsystem_status()`), plus `mission`'s live
+  FSM state read from `/mission/state` (`ProcessApi.get_mission_state()`,
+  ~1s deadline, `"unknown"` on timeout).
 - Feature files:
-  - `F01`–`F03`, `F13`–`F15`, `F17`, `F19`: done
+  - `F01`–`F03`, `F13`–`F15`, `F17`, `F19`, `F21`: done
+  - `F22`: T01–T05, T07 done; T06 (live Pi verification) remains
 
 ## Known Issues / Pending
 
@@ -92,31 +106,23 @@ management, map operations, configuration, scripts, and intent publishing.
   env var no longer works (path is now fixed). If a session or script still
   points at the old path/env var, it will silently pick up nothing — check
   `~/.dome/config/control.yaml` exists.
-- **F21 (new, 2026-08-04)**: CLI syntax orthogonality cleanup —
-  `03-features/notdone/F21-cli-syntax-orthogonality.md`. D3a renames the
-  `nav` domain to `mission` (it talks to `dome_mission`, not `dome_control`
-  navigation logic), following from F19's T02 decision. T01 done (dropped
-  `move.distance`/`turn.degrees`, kept the directional pairs +
-  `turn.radians`). Remaining: T02/T03/T03a (the `nav`→`mission` rename),
-  T04 (positional-param doc note), T05 (split `navigation_commands.py`),
-  T06 (update `02-doc/cli-reference.md`).
-- **F22 (new, 2026-08-04)**: cross-package `robot subsystems` status
+- **F22 (2026-08-05, nearly done)**: cross-package `robot subsystems` status
   command — `03-features/notdone/F22-subsystem-status-command.md` /
   `04-tasks/notdone/TF22-subsystem-status-command.md`. Reports
   running/not-running for `gendrv`/`nav`/`semantic`/`control`/`mission`/
-  `vision` via uniform `ps aux` keyword-grep (extends
-  `ProcessApi.list_ros_processes()`), plus live FSM state for `mission`
-  specifically via a new `/mission/state` publisher in `dome_mission`
-  (T02 — touches that package, tracked here since the feature originates
-  in `dome_control`). Scoped and approved; no tasks started yet.
+  `vision` via `ProcessApi.get_subsystem_status()`, plus live FSM state for
+  `mission` via `/mission/state` (published from `dome_mission`'s
+  `mission_node.py`, T02). CLI table output via `SimpleCLI.print_subsystems`.
+  T01–T05 and T07 done, 210/210 tests passing. Only **T06** (live Pi
+  verification — needs the physical robot) remains before the feature can
+  close.
 
 ## Likely Next Steps
 
-1. Implement F21's `nav`→`mission` rename (T02/T03/T03a/T05/T06).
-2. Implement F22's `robot subsystems` command (T01–T07).
-3. Test `scene describe` and `scene objects` with real oak hardware on robot.
-4. Observe empty-turn voice debug log on hardware.
-5. Split `RobotController` into smaller modules.
+1. Run F22 T06 (live Pi verification of `robot subsystems`), then close F22.
+2. Test `scene describe` and `scene objects` with real oak hardware on robot.
+3. Observe empty-turn voice debug log on hardware.
+4. Split `RobotController` into smaller modules.
 
 ## Quick Commands
 

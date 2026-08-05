@@ -30,4 +30,11 @@ def build_control_commands() -> dict[str, cd.CommandDef]:
             description="Speak text aloud via speech output",
             group="control",
         ),
+        "robot.subsystems": cd.CommandDef(
+            method_name="get_subsystems_status",
+            parameters=[],
+            description="Report running/not-running status for each subsystem "
+                         "(gendrv/nav/semantic/control/mission/vision)",
+            group="control",
+        ),
     }

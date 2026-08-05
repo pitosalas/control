@@ -2,10 +2,10 @@
 ## F21 — CLI syntax orthogonality cleanup
 
 **Priority**: Low
-**Done:** no
+**Done:** yes
 **Tasks File Created:** yes
-**Tests Written:** no
-**Test Passing:** no
+**Tests Written:** yes
+**Test Passing:** yes
 **Description**: The `domain.action[.subaction]` command grammar
 (`command_dispatcher.py` + the `commands/*_commands.py` builders) is applied
 inconsistently across domains — the same underlying shape (a directional pair,

@@ -1,6 +1,6 @@
 ---
-version: "2.1"
-generated: "2026-05-12"
+version: "2.2"
+generated: "2026-08-05"
 ---
 
 # SimpleCLI
@@ -81,6 +81,40 @@ if "Unknown command" in result.message and "." not in tokens[0]:
 ```
 
 Lists all `<group>.*` commands if the token looks like a group name.
+
+## Structured Output: print_data and format_table
+
+Commands that return structured `data` (not just a message) get rendered through `print_data`, which dispatches on well-known keys rather than trying to generically pretty-print arbitrary dicts:
+
+```python
+def print_data(self, data) -> None:
+    if isinstance(data, dict):
+        if "variables" in data and isinstance(data["variables"], dict):
+            self.print_variables(data["variables"]); return
+        if "status" in data and isinstance(data["status"], dict):
+            self.print_status(data["status"]); return
+        if "subsystems" in data and isinstance(data["subsystems"], dict):
+            self.print_subsystems(data["subsystems"]); return
+        ...  # generic fallback for anything else
+```
+
+Each known key gets its own table shape via the shared `format_table` helper. `print_subsystems` (F22) is the newest of these — it renders `robot subsystems`' six-row response as `SUBSYSTEM`/`RUNNING`/`DETAIL`, where `DETAIL` means different things per row by design: a process count for five subsystems, but `mission`'s live FSM state string for the one subsystem where that's the more useful signal:
+
+```python
+def print_subsystems(self, subsystems: dict) -> None:
+    rows = [
+        {
+            "subsystem": name,
+            "running": entry.get("running"),
+            "detail": entry["state"] if name == "mission"
+                      else str(len(entry.get("processes", []))),
+        }
+        for name, entry in sorted(subsystems.items())
+    ]
+    print(format_table(rows, [("subsystem", "SUBSYSTEM"), ("running", "RUNNING"), ("detail", "DETAIL")]))
+```
+
+This "one column, two meanings" choice trades a small amount of column-semantics purity for a single unified table — the alternative (a separate `STATE` column that's empty for five of six rows) was judged less readable for a status command whose whole point is a quick glance.
 
 ## Observations
 

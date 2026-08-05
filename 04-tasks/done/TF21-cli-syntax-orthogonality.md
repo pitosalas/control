@@ -16,7 +16,7 @@ too unless something else still calls them directly (check
 directional commands and `turn.radians` still dispatch successfully.
 
 ## T02 — Rename `nav.explore` → `mission.explore.start` (D3, D3a)
-**Status**: not done
+**Status**: done
 **Description**: In `mission_commands.py` (post-T05 split), rename the
 `nav.explore` `CommandDef` key to `mission.explore.start` (domain rename
 `nav` → `mission` per D3a folds in here — one rename, not two passes). No
@@ -26,7 +26,7 @@ Test: `dispatch_text("mission explore start")` publishes `exploration_start`;
 return `Unknown command`.
 
 ## T03 — Rename `nav.go` → `mission.go.start`, `nav.cancel` → `mission.go.stop` (D3, D3a)
-**Status**: not done
+**Status**: done
 **Description**: Rename the `nav.go` `CommandDef` key to `mission.go.start`
 (same `method_name`/params, `publish_intent_navigation_go`, `label`
 parameter). Rename `nav.cancel` to `mission.go.stop` (same `method_name`,
@@ -37,7 +37,7 @@ kitchen")` publishes `navigation_go` with `label=kitchen`;
 return `Unknown command`.
 
 ## T03a — Rename remaining `nav.*` commands to `mission.*` (D3a)
-**Status**: not done
+**Status**: done
 **Description**: Rename `nav.explore.stop` → `mission.explore.stop` and
 `nav.explore.status` → `mission.explore.status` (same `method_name`s,
 no behavior change). Test: `dispatch_text("mission explore stop")`
@@ -46,7 +46,7 @@ value `nav explore status` did; both `nav.*` forms return `Unknown
 command`.
 
 ## T04 — Document positional-only optional parameters (D4)
-**Status**: not done
+**Status**: done
 **Description**: Add a short note to `02-doc/cli-reference.md`'s `launch.*`
 section (already partially states this) and to `docs/launch.start.txt` (if
 kept per the chores.md doc-replacement item) making explicit: optional
@@ -55,7 +55,7 @@ is no way to skip to a later optional parameter. No behavior change. No test
 — documentation only.
 
 ## T05 — Split `navigation_commands.py` into `map_commands.py` + `mission_commands.py` (D5, D3a)
-**Status**: not done
+**Status**: done
 **Description**: Move the `map.*` `CommandDef` entries into a new
 `map_commands.py` (`build_map_commands()`), and the `nav.*` entries (as
 renamed by T02/T03/T03a to `mission.*`) into a new `mission_commands.py`
@@ -70,7 +70,7 @@ for the T02/T03/T03a renames); `list_commands(group="map")` and
 returns empty.
 
 ## T06 — Update `02-doc/cli-reference.md` for the renamed/removed commands
-**Status**: not done
+**Status**: done
 **Description**: Reflect T01–T03a's renames and removals in the reference
 doc written for this session (movement table loses `move.distance`/
 `turn.degrees` rows; the `nav` table is renamed to `mission` and its rows

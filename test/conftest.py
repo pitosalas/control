@@ -17,6 +17,7 @@ def _inject_fake_ros2():
     fake_node_class = type("Node", (), {
         "__init__": lambda self, name: None,
         "create_subscription": lambda *a, **kw: Mock(),
+        "destroy_subscription": lambda *a, **kw: None,
         "create_publisher": lambda *a, **kw: Mock(),
         "create_client": lambda *a, **kw: Mock(),
         "get_logger": lambda self: Mock(),
@@ -25,11 +26,16 @@ def _inject_fake_ros2():
     fake_rclpy = ModuleType("rclpy")
     fake_rclpy.init = Mock()
     fake_rclpy.spin = Mock()
+    fake_rclpy.spin_once = Mock()
     fake_rclpy.shutdown = Mock()
     fake_rclpy.ok = Mock(return_value=True)
 
     fake_node_mod = ModuleType("rclpy.node")
     fake_node_mod.Node = fake_node_class
+
+    fake_qos_mod = ModuleType("rclpy.qos")
+    fake_qos_mod.QoSProfile = Mock()
+    fake_qos_mod.QoSDurabilityPolicy = Mock(TRANSIENT_LOCAL=Mock())
 
     fake_trigger = Mock()
     fake_trigger.Request.return_value = Mock()
@@ -51,6 +57,7 @@ def _inject_fake_ros2():
 
     sys.modules.setdefault("rclpy", fake_rclpy)
     sys.modules.setdefault("rclpy.node", fake_node_mod)
+    sys.modules.setdefault("rclpy.qos", fake_qos_mod)
     sys.modules.setdefault("std_srvs", fake_std_srvs)
     sys.modules.setdefault("std_srvs.srv", fake_std_srvs_srv)
     sys.modules.setdefault("std_msgs", fake_std_msgs)

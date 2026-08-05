@@ -6,7 +6,20 @@
       "Bash(git -C /home/pitosalas/j3 diff)",
       "Bash(git -C /home/pitosalas/j3 add .claude/bootstrap.md .claude/commands/checkpoint.md .claude/commands/start.md .claude/literate.md .claude/process.md .claude/settings.json .claude/settings.local.json .claude/style_guide.md .claude/templates/feature-template.md README.md)",
       "Bash(git -C /home/pitosalas/j3 commit -m ' *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(python3 -m pytest test/ -q)",
+      "Read(//home/pitosalas/ros2_ws/src/**)",
+      "Bash(find / -maxdepth 4 -iname \"dome_mission\")",
+      "Read(//home/pitosalas/j3/.claude/**)",
+      "Read(//home/pitosalas/j3/.claude/commands/**)",
+      "Bash(python3 -)",
+      "Bash(cp /home/pitosalas/j3/.claude/bootstrap.md /home/pitosalas/ros2_ws/src/dome_mission/.claude/bootstrap.md)",
+      "Bash(cp /home/pitosalas/j3/.claude/commands/checkpoint.md /home/pitosalas/ros2_ws/src/dome_mission/.claude/commands/checkpoint.md)",
+      "Bash(cp /home/pitosalas/j3/.claude/settings.json /home/pitosalas/ros2_ws/src/dome_mission/.claude/settings.json)",
+      "Bash(rsync -av --delete /home/pitosalas/j3/.claude/ /home/pitosalas/ros2_ws/src/dome2/.claude/ --exclude settings.local.json)",
+      "Bash(rsync -av --delete /home/pitosalas/j3/.claude/ /home/pitosalas/ros2_ws/src/dome_vision/.claude/ --exclude settings.local.json)",
+      "Bash(rsync -av --delete /home/pitosalas/j3/.claude/ /home/pitosalas/ros2_ws/src/dome_voice/.claude/ --exclude settings.local.json)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('/home/pitosalas/ros2_ws/src/dome_control/dome_control/ros2_api/process_api.py'\\).read\\(\\)\\)\")"
     ]
   }
 }
