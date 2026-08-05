@@ -15,7 +15,10 @@ Control config moved from `~/.control/config.yaml` to
 `~/.dome/config/control.yaml`, with the `CONTROL_CONFIG` env var override
 dropped (path is now fixed). F21 (new) D3a adds the `nav`→`mission` CLI
 domain rename that follows from F19's T02; F21 T01 (drop
-`move.distance`/`turn.degrees`) implemented and tested.
+`move.distance`/`turn.degrees`) implemented and tested. F22 (new) scoped and
+approved — cross-package `robot subsystems` status command
+(gendrv/nav/semantic/control/mission/vision) — not started, see
+`03-features/notdone/F22-subsystem-status-command.md`.
 
 This repo is the ROS2 control package and CLI for robot movement, launch/process
 management, map operations, configuration, scripts, and intent publishing.
@@ -97,13 +100,23 @@ management, map operations, configuration, scripts, and intent publishing.
   `turn.radians`). Remaining: T02/T03/T03a (the `nav`→`mission` rename),
   T04 (positional-param doc note), T05 (split `navigation_commands.py`),
   T06 (update `02-doc/cli-reference.md`).
+- **F22 (new, 2026-08-04)**: cross-package `robot subsystems` status
+  command — `03-features/notdone/F22-subsystem-status-command.md` /
+  `04-tasks/notdone/TF22-subsystem-status-command.md`. Reports
+  running/not-running for `gendrv`/`nav`/`semantic`/`control`/`mission`/
+  `vision` via uniform `ps aux` keyword-grep (extends
+  `ProcessApi.list_ros_processes()`), plus live FSM state for `mission`
+  specifically via a new `/mission/state` publisher in `dome_mission`
+  (T02 — touches that package, tracked here since the feature originates
+  in `dome_control`). Scoped and approved; no tasks started yet.
 
 ## Likely Next Steps
 
 1. Implement F21's `nav`→`mission` rename (T02/T03/T03a/T05/T06).
-2. Test `scene describe` and `scene objects` with real oak hardware on robot.
-3. Observe empty-turn voice debug log on hardware.
-4. Split `RobotController` into smaller modules.
+2. Implement F22's `robot subsystems` command (T01–T07).
+3. Test `scene describe` and `scene objects` with real oak hardware on robot.
+4. Observe empty-turn voice debug log on hardware.
+5. Split `RobotController` into smaller modules.
 
 ## Quick Commands
 
