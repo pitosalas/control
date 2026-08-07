@@ -41,7 +41,6 @@ def install_fake_telemetry_msg():
 install_fake_telemetry_msg()
 
 from dome_control.nodes.telemetry_node import build_message  # noqa: E402
-from dome_control.ups_status import UpsStats  # noqa: E402
 
 
 class FakeClock:
@@ -50,7 +49,8 @@ class FakeClock:
 
 
 def make_ups():
-    return UpsStats(bus_voltage_v=12.0, current_a=0.5, power_w=6.0, percent=83.3)
+    # Stands in for a dome_telemetry_msgs/BatteryStats received on /telemetry/battery.
+    return SimpleNamespace(bus_voltage_v=12.0, current_a=0.5, power_w=6.0, percent=83.3)
 
 
 def make_oak():
