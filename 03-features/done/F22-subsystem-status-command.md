@@ -2,10 +2,10 @@
 ## F22 — subsystem status command
 
 **Priority**: Medium
-**Done:** no
+**Done:** yes
 **Tasks File Created:** yes
-**Tests Written:** no
-**Test Passing:** no
+**Tests Written:** yes
+**Test Passing:** yes
 **Description**: New CLI command `robot subsystems` reports, in one place,
 whether each of the robot's six key subsystems is running and (where
 available) what it's currently doing: `gendrv` (linorobot2 driver bringup +

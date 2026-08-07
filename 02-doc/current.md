@@ -15,11 +15,12 @@ attention.
 `map_commands.py` + `mission_commands.py` (`command_dispatcher.py` updated
 to import/register both), `02-doc/cli-reference.md` and `docs/launch.start.txt`
 updated for the rename and the positional-optional-parameter note.
-**F22 (`robot subsystems` status command) nearly done**: T01/T02/T03/T04/T05/T07
-all done — `ProcessApi.get_subsystem_status()` + `get_mission_state()`,
+**F22 closed 2026-08-07** (`robot subsystems` status command, all tasks
+done): `ProcessApi.get_subsystem_status()` + `get_mission_state()`,
 `RobotController.get_subsystems_status()`, `robot.subsystems` CLI command
-with table output, `dome_mission`'s `/mission/state` publisher. Only T06
-(live Pi hardware verification) remains. 210 tests passing.
+with table output, `dome_mission`'s `/mission/state` publisher. T06 (live Pi
+hardware verification) confirmed all six subsystems and mission's live FSM
+state enrichment working on `dome-R1`. 202 tests passing.
 Control config moved from `~/.control/config.yaml` to
 `~/.dome/config/control.yaml`, with the `CONTROL_CONFIG` env var override
 dropped (path is now fixed).
@@ -108,8 +109,7 @@ management, map operations, configuration, scripts, and intent publishing.
   FSM state read from `/mission/state` (`ProcessApi.get_mission_state()`,
   ~1s deadline, `"unknown"` on timeout).
 - Feature files:
-  - `F01`–`F03`, `F13`–`F15`, `F17`, `F19`, `F20`, `F21`: done
-  - `F22`: T01–T05, T07 done; T06 (live Pi verification) remains
+  - `F01`–`F03`, `F13`–`F15`, `F17`, `F19`, `F20`, `F21`, `F22`: done
 
 ## Known Issues / Pending
 
@@ -121,23 +121,20 @@ management, map operations, configuration, scripts, and intent publishing.
   env var no longer works (path is now fixed). If a session or script still
   points at the old path/env var, it will silently pick up nothing — check
   `~/.dome/config/control.yaml` exists.
-- **F22 (2026-08-05, nearly done)**: cross-package `robot subsystems` status
-  command — `03-features/notdone/F22-subsystem-status-command.md` /
-  `04-tasks/notdone/TF22-subsystem-status-command.md`. Reports
-  running/not-running for `gendrv`/`nav`/`semantic`/`control`/`mission`/
-  `vision` via `ProcessApi.get_subsystem_status()`, plus live FSM state for
-  `mission` via `/mission/state` (published from `dome_mission`'s
-  `mission_node.py`, T02). CLI table output via `SimpleCLI.print_subsystems`.
-  T01–T05 and T07 done, 210/210 tests passing. Only **T06** (live Pi
-  verification — needs the physical robot) remains before the feature can
-  close.
+- **`dome_vision` config on this session**: a `vision` relaunch hit
+  `ValueError: Environment variable 'ROBOFLOW_API_KEY' is not set` — this
+  session's shell shows `[doppler] no token configured — skipping secrets`
+  at startup, so Doppler-managed secrets (incl. `ROBOFLOW_API_KEY`) aren't
+  loaded. `vision` had already been confirmed working once before this in
+  the same session; needs a Doppler token configured to fix properly. Not a
+  `dome_control` issue.
 
 ## Likely Next Steps
 
-1. Run F22 T06 (live Pi verification of `robot subsystems`), then close F22.
-2. Test `scene describe` and `scene objects` with real oak hardware on robot.
-3. Observe empty-turn voice debug log on hardware.
-4. Split `RobotController` into smaller modules.
+1. Test `scene describe` and `scene objects` with real oak hardware on robot.
+2. Observe empty-turn voice debug log on hardware.
+3. Split `RobotController` into smaller modules.
+4. Sort out Doppler token / `ROBOFLOW_API_KEY` for this session (see above).
 
 ## Quick Commands
 

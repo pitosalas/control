@@ -89,7 +89,7 @@ a line to `02-doc/current.md`'s "What Is Built" documenting the command and
 the `/mission/state` topic it depends on for mission detail.
 
 ## T06 — Live Pi verification
-**Status**: not done
+**Status**: done
 **Description**: On the robot: run `robot subsystems` with only
 `behavior_manager` (+ `mission_node`, post-T02 build) up, confirm
 `control`/`mission` show running (mission showing `IDLE`) and the other four
@@ -99,8 +99,44 @@ available) one at a time and confirm each flips to running. Hardware/runtime
 only — no plain-suite test; record manual test notes (command, setup,
 expected vs. actual) directly in this task file once run.
 
+**Done 2026-08-07** (on `dome-R1`, live robot):
+
+- **Setup**: `bl dome2 robot.launch.py --options "c"` (control →
+  `behavior_manager`), `ros2 run dome_mission mission_node`, then
+  `ros2 run dome_control run` for the CLI.
+- **Step 1 (control + mission + gendrv up)**: brought `gendrv` up alongside
+  the above (`bl dome2 robot.launch.py --options "d"`) before the first
+  check, so the isolated "only control/mission" baseline wasn't captured
+  separately. `robot subsystems` showed `control: yes (1)`,
+  `gendrv: yes (1)`, `mission: yes (IDLE)`, `nav`/`semantic`/`vision`:
+  `no (0)` — expected classification confirmed for all six rows regardless.
+- **Step 2 (mission state transition)**: `mission explore start` published
+  `exploration_start`; `mission_node` logged `intent EXPLORE_START -> state
+  EXPLORING` and (expectedly, since `dome_nav`'s explore stack wasn't up
+  yet) `ERROR: ExploreArea server unavailable`. Per T02's scope, only the
+  intent-driven transition is published — `robot subsystems` correctly
+  showed `mission: EXPLORING` immediately, matching design.
+- **Step 3 (remaining subsystems)**: `vision` via
+  `bl dome2 robot.launch.py --options "vi"` → `vision: yes (1)`,
+  `semantic: yes` (both `dome_vision_ros_node` and `semantic_map_node` from
+  `dome_vision_ros/robot.launch.py`). `nav` via
+  `bl dome_nav robot_explore.launch.py --map_name test_map` →
+  `nav: yes (3)` (`slam_toolbox`/nav2/`slam_manager_node`/
+  `explorer_manager_node`).
+- **Aside (not a `dome_control`/T06 issue)**: a `vision` relaunch attempt hit
+  `ValueError: Environment variable 'ROBOFLOW_API_KEY' is not set` from
+  `dome_vision`'s config loader — this session's shell never loaded Doppler
+  secrets (`[doppler] no token configured — skipping secrets` at shell
+  startup). `vision`/`semantic` had already been confirmed running once
+  before this, so it doesn't block T06; flagged for follow-up in
+  `dome_vision`, not tracked here.
+- **Result**: all six subsystems (`control`, `gendrv`, `mission`, `vision`,
+  `semantic`, `nav`) correctly report running/not-running, and `mission`'s
+  live FSM state enrichment (`IDLE` → `EXPLORING`) works end-to-end on
+  hardware.
+
 ## T07 — Test-writing rollup
-**Status**: not done
+**Status**: done
 **Description**: Confirm T01/T03/T04's tests (and T02's, in `dome_mission`)
 together cover: correct classification per subsystem, the "nothing running"
 case, mission's live-state enrichment (both present and `"unknown"`
@@ -115,3 +151,9 @@ covers mission-state enrichment present and `"unknown"`; `test_simple_cli_format
 covers CLI rendering; `dome_mission/test/test_mission_node.py` covers the
 `/mission/state` publisher (T02). `dome_control` suite: 210/210 passing.
 Left open pending T06 (needs the physical robot).
+
+**Done 2026-08-07**: T06's live-hardware notes recorded above — all six
+subsystems and the mission live-state enrichment verified working on
+`dome-R1`. No coverage gaps found. `dome_control` suite: 202/202 passing
+(210 → 202 after F20's merge moved 8 `ups_status` tests out to the
+`dome_telemetry` package, unrelated to F22).
