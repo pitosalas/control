@@ -2,3 +2,4 @@ install/
 bin/
 piper_model/
 .Python
+__pycache__/
